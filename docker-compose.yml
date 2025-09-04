@@ -1,0 +1,52 @@
+services:
+  web:
+    build: { context: ./packages/web, dockerfile: Dockerfile }
+    container_name: carerconnect-web
+    ports: [ "5173:5173" ]
+    volumes: [ ./packages/web:/usr/src/app, /usr/src/app/node_modules ]
+    environment: [ VITE_API_URL=http://localhost:4000 ]
+    depends_on: [ api ]
+    restart: unless-stopped
+    networks:
+      - carerconnect_net
+
+  api:
+    build: { context: ./packages/api, dockerfile: Dockerfile }
+    container_name: carerconnect-api
+    ports: [ "4000:4000" ]
+    volumes: [ ./packages/api:/usr/src/app, /usr/src/app/node_modules ]
+    env_file: [ ./packages/api/.env ]
+    depends_on: [ db ]
+    restart: unless-stopped
+    networks:
+      - carerconnect_net
+
+  db:
+    image: postgres:14-alpine
+    container_name: carerconnect-db
+    ports: [ "5432:5432" ]
+    environment: { POSTGRES_USER: carerconnect, POSTGRES_PASSWORD: password, POSTGRES_DB: carerconnect_db }
+    volumes: [ db_data:/var/lib/postgresql/data, ./packages/api/src/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql ]
+    restart: unless-stopped
+    networks:
+      - carerconnect_net
+
+  redis:
+    image: redis:6-alpine
+    container_name: carerconnect-redis
+    ports: [ "6379:6379" ]
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    networks:
+      - carerconnect_net
+
+volumes:
+  db_data:
+
+# This section defines our custom network with a new, non-conflicting IP range
+networks:
+  carerconnect_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "10.5.0.0/16"
