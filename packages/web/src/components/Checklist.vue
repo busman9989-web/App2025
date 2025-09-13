@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { reactive, ref, PropType } from 'vue';
 import api from '@/api';
-import type { Checklist as ChecklistType } from '@/views/ChecklistsView.vue';
+import type { Checklist as ChecklistType } from '@/views/PlannerView.vue'; // Updated import path
 
 const props = defineProps({
   initialChecklist: {
@@ -53,6 +53,6 @@ const saveChanges = () => {
     } finally {
       isSaving.value = false;
     }
-  }, 1000); // Debounce: Wait 1 second after the last change before saving
+  }, 1000);
 };
 </script>

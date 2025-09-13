@@ -29,19 +29,37 @@ import { useRouter, RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/api';
 
-const email = ref(''); 
-const password = ref(''); 
+const email = ref('');
+const password = ref('');
 const error = ref('');
-const router = useRouter(); 
+const router = useRouter();
 const authStore = useAuthStore();
 
 const handleLogin = async () => {
+  error.value = ''; // Clear previous errors
+  console.log('[FRONTEND DEBUG] Attempting login for email:', email.value);
   try {
     const response = await api.post('/api/auth/login', { email: email.value, password: password.value });
-    authStore.setToken(response.data.token);
-    router.push('/');
-  } catch (err) {
-    error.value = 'Invalid credentials.';
+    console.log('[FRONTEND DEBUG] API Login Response:', response.data); // Log response.data for clarity
+    console.log('[FRONTEND DEBUG] Token received:', response.data.token);
+    console.log('[FRONTEND DEBUG] User received:', response.data.user); // DEBUG: Check the user object
+
+    if (response.data && response.data.token && response.data.user) {
+      // Correctly call setAuth with both token and user object
+      authStore.setAuth(response.data.token, response.data.user); // <--- CORRECTED CALL
+      console.log('[FRONTEND DEBUG] Token and User set in auth store. Redirecting...');
+      router.push('/');
+    } else {
+      console.error('[FRONTEND DEBUG] Login successful, but missing token or user in response.');
+      error.value = 'Login successful, but failed to get authentication token or user data.';
+    }
+  } catch (err: any) {
+    console.error('[FRONTEND DEBUG] Login API call failed:', err);
+    if (err.response && err.response.data && err.response.data.message) {
+      error.value = err.response.data.message;
+    } else {
+      error.value = 'Login failed. Please try again.';
+    }
   }
 };
 </script>

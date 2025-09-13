@@ -1,29 +1,54 @@
+// File: carer-connect-monorepo/packages/api/src/routes/users.routes.ts
 import { FastifyInstance } from 'fastify';
-import { Pool } from 'pg';
-import { authenticate } from '../lib/auth';
+import { verifyJwt } from '../plugins/auth'; // Assuming you have a verifyJwt plugin
 
-export async function resourceRoutes(fastify: FastifyInstance, { db }: { db: Pool }) {
-  // A simple check for admin/moderator roles. In a real app, this would be more robust.
-  async function requireAdmin(request: any, reply: any) {
-    if (request.user.role !== 'admin' && request.user.role !== 'moderator') {
-        return reply.code(403).send({ message: 'Permission denied.' });
+export default async function usersRoutes(fastify: FastifyInstance) {
+
+  // Route for fetching the current user's profile
+  fastify.get('/users/me', { preHandler: [verifyJwt] }, async (request, reply) => {
+    // request.user should be populated by the verifyJwt preHandler
+    // with the user ID from the JWT payload.
+
+    if (!request.user || !request.user.id) {
+      return reply.status(401).send({ message: 'Unauthorized: User ID not found in token.' });
     }
-  }
 
-  // GET all resources (public)
-  fastify.get('/api/resources', async (request, reply) => {
-      const { rows } = await db.query('SELECT * FROM resources ORDER BY created_at DESC');
-      reply.send(rows);
+    try {
+      // Fetch user from database using the ID from the token
+      const user = await fastify.prisma.user.findUnique({
+        where: { id: request.user.id },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          status: true, // Include status, it will be encrypted
+          firstName: true,
+          lastName: true,
+          // Add any other profile fields you want to expose
+        },
+      });
+
+      if (!user) {
+        return reply.status(404).send({ message: 'User not found.' });
+      }
+
+      // Decrypt the status field before sending it to the client
+      const decryptedStatus = user.status ? fastify.encryption.decrypt(user.status) : null;
+
+      return reply.send({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        status: decryptedStatus, // Send decrypted status
+        firstName: user.firstName,
+        lastName: user.lastName,
+      });
+    } catch (error) {
+      fastify.log.error(`Error fetching user profile: ${error}`);
+      return reply.status(500).send({ message: 'Internal server error.' });
+    }
   });
 
-  // POST a new resource (admin/mod only)
-  fastify.post('/api/resources', { preHandler: [authenticate, requireAdmin] }, async (request, reply) => {
-      const { title, content, category, external_url } = request.body as any;
-      const query = `
-          INSERT INTO resources (title, content, category, external_url)
-          VALUES ($1, $2, $3, $4) RETURNING *;
-      `;
-      const { rows } = await db.query(query, [title, content, category, external_url]);
-      reply.code(201).send(rows[0]);
-  });
+  // TODO: Add a PUT/PATCH route for updating user profile (e.g., /users/me or /users/:id)
+  // This would need to encrypt the status field before saving.
 }

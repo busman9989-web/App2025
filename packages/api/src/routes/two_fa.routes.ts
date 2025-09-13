@@ -9,7 +9,7 @@ export async function twoFactorAuthRoutes(fastify: FastifyInstance, { db }: { db
   fastify.addHook('preHandler', authenticate);
 
   // Generate a new 2FA secret and QR code for the user to scan
-  fastify.post('/api/2fa/generate', async (request, reply) => {
+  fastify.post('/2fa/generate', async (request, reply) => {
     const user = request.user as any;
     const secret = generateSecret({
       name: `CarerConnect (${user.email})`,
@@ -28,7 +28,7 @@ export async function twoFactorAuthRoutes(fastify: FastifyInstance, { db }: { db
   });
 
   // Verify the token provided by the user and enable 2FA
-  fastify.post('/api/2fa/verify', async (request, reply) => {
+  fastify.post('/2fa/verify', async (request, reply) => {
     const user = request.user as any;
     const { token } = request.body as any;
 

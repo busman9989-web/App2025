@@ -1,60 +1,45 @@
+// File: carer-connect-monorepo/packages/api/src/index.ts
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import jwt from '@fastify/jwt';
-import { Pool } from 'pg';
+// Removed: Pool and dotenv, as app.ts will handle Prisma/DB connection
+// Removed: All individual route imports, as app.ts will auto-load them
+
+// Import the main app plugin (your app.ts)
+import app from './app'; // Assuming app.ts exports default app
+
+// Load environment variables (ensure this runs first)
 import * as dotenv from 'dotenv';
-
-// Import all route handlers
-import { authRoutes } from './routes/auth.routes';
-import { postRoutes } from './routes/posts.routes';
-import { journalRoutes } from './routes/journal.routes';
-import { resourceRoutes } from './routes/resources.routes';
-import { checklistRoutes } from './routes/checklists.routes';
-import { reportRoutes } from './routes/reports.routes';
-import { userRoutes } from './routes/users.routes';
-import { plannerRoutes } from './routes/planner.routes';
-import { twoFactorAuthRoutes } from './routes/two_fa.routes';
-
 dotenv.config();
 
 const fastify = Fastify({ logger: true });
-const db = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// --- PLUGINS ---
+// --- PLUGINS (Core Fastify ones) ---
 fastify.register(helmet);
 fastify.register(rateLimit, { max: 150, timeWindow: '1 minute' });
-fastify.register(cors);
-fastify.register(jwt, { secret: process.env.JWT_SECRET! });
-
-fastify.decorate("user", null);
-fastify.addHook("onRequest", async (request, reply) => {
-  try {
-    if (request.headers.authorization) {
-      const decoded = await request.jwtVerify();
-      (request as any).user = decoded;
-    }
-  } catch (err) {
-    // Allows requests without a token to pass.
-  }
+fastify.register(cors, {
+  origin: 'http://localhost:5173', // Your frontend origin
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 });
 
-// Register all application routes
-fastify.register(authRoutes, { db });
-fastify.register(postRoutes, { db });
-fastify.register(journalRoutes, { db });
-fastify.register(resourceRoutes, { db });
-fastify.register(checklistRoutes, { db });
-fastify.register(reportRoutes, { db });
-fastify.register(userRoutes, { db });
-fastify.register(plannerRoutes, { db });
-fastify.register(twoFactorAuthRoutes, { db });
+// Register JWT. app.ts will handle the actual preHandler logic via a plugin.
+fastify.register(jwt, { secret: process.env.JWT_SECRET! });
+
+// --- IMPORTANT: Register your main app plugin (app.ts) ---
+// This is where Prisma, Encryption, and all your specific routes get loaded.
+fastify.register(app, {
+  prefix: '/api', // All routes in app.ts will be prefixed with /api
+});
 
 // --- SERVER START ---
 const start = async () => {
   try {
     await fastify.listen({ port: 4000, host: '0.0.0.0' });
+    console.log(`Server listening on http://localhost:4000`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

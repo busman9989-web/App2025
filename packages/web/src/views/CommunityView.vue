@@ -26,7 +26,7 @@ const isLoading = ref(true);
 const error = ref(false);
 
 const fetchPosts = async () => {
-  isLoading.value = true;
+  // No need to set loading true here as it's for subsequent fetches
   try {
     const response = await api.get('/api/posts');
     posts.value = response.data;

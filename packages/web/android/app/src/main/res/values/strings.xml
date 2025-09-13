@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CarerConnect</string>
+    <string name="title_activity_main">CarerConnect</string>
+    <string name="package_name">com.carerconnect.app</string>
+    <string name="custom_url_scheme">com.carerconnect.app</string>
+</resources>

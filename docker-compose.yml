@@ -1,22 +1,37 @@
+# carer-connect-monorepo/docker-compose.yml
 services:
   web:
-    build: { context: ./packages/web, dockerfile: Dockerfile }
-    container_name: carerconnect-web
-    ports: [ "5173:5173" ]
-    volumes: [ ./packages/web:/usr/src/app, /usr/src/app/node_modules ]
-    environment: [ VITE_API_URL=http://localhost:4000 ]
-    depends_on: [ api ]
+    build:
+      context: ./packages/web
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000 # Use 'http://api:3000' if web calls api via service name
+    volumes:
+      # - ./packages/web:/usr/src/app # ❌ COMMENTED OUT: Prevents host code from overwriting container build
+      - /usr/src/app/node_modules # ✅ Keeps container’s node_modules isolated
     restart: unless-stopped
     networks:
       - carerconnect_net
 
   api:
-    build: { context: ./packages/api, dockerfile: Dockerfile }
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
     container_name: carerconnect-api
-    ports: [ "4000:4000" ]
-    volumes: [ ./packages/api:/usr/src/app, /usr/src/app/node_modules ]
-    env_file: [ ./packages/api/.env ]
-    depends_on: [ db ]
+    # Corrected port to match API's default (typically 3000)
+    ports:
+      - "3000:3000" # Assuming your Fastify API listens on port 3000
+    volumes:
+      # - ./packages/api:/usr/src/app # ❌ CRITICAL: Remove/comment out this line! It overwrites built code.
+      - /usr/src/app/node_modules # ✅ Keeps container’s node_modules isolated (though less critical with multi-stage)
+                                  # You *might* not need this if all dependencies are copied correctly from builder.
+                                  # But keeping it for now is safe.
+    env_file:
+      - ./packages/api/.env # ✅ Load env safely without copying into image
+    depends_on:
+      - db
     restart: unless-stopped
     networks:
       - carerconnect_net
@@ -24,9 +39,15 @@ services:
   db:
     image: postgres:14-alpine
     container_name: carerconnect-db
-    ports: [ "5432:5432" ]
-    environment: { POSTGRES_USER: carerconnect, POSTGRES_PASSWORD: password, POSTGRES_DB: carerconnect_db }
-    volumes: [ db_data:/var/lib/postgresql/data, ./packages/api/src/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql ]
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: carerconnect
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: carerconnect_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./packages/api/src/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql # Ensure this file exists
     restart: unless-stopped
     networks:
       - carerconnect_net
@@ -34,7 +55,8 @@ services:
   redis:
     image: redis:6-alpine
     container_name: carerconnect-redis
-    ports: [ "6379:6379" ]
+    ports:
+      - "6379:6379"
     restart: unless-stopped
     command: redis-server --appendonly yes
     networks:
@@ -43,7 +65,6 @@ services:
 volumes:
   db_data:
 
-# This section defines our custom network with a new, non-conflicting IP range
 networks:
   carerconnect_net:
     driver: bridge

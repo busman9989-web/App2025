@@ -49,10 +49,12 @@ const handleRegister = async () => {
   success.value = '';
   isLoading.value = true;
   try {
+    // Making the API call to register, now including the 'status' field
     await api.post('/api/auth/register', {
       displayName: displayName.value,
       email: email.value,
-      password: password.value
+      password: password.value,
+      status: 'active' // <--- THIS IS THE ADDED LINE
     });
     success.value = 'Account created! Redirecting to login...';
     setTimeout(() => {

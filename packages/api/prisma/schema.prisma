@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Map your SQL tables to Prisma models
+model User {
+  id                  String          @id @default(uuid()) @map("id")
+  email               String          @unique
+  passwordHash        String          @map("password_hash")
+  role                String          @default("user")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  isVerified          Boolean         @default(false) @map("is_verified")
+  verificationToken   String?         @map("verification_token")
+  twoFaSecret         String?         @map("two_fa_secret")
+  twoFaEnabled        Boolean         @default(false) @map("two_fa_enabled")
+  displayNameEncrypted String?        @map("display_name_encrypted")
+  statusEncrypted     String?         @map("status_encrypted")
+  posts               Post[]
+  postVotes           PostVote[]
+  appointments        Appointment[]
+  comments            Comment[]
+  journalEntries      JournalEntry[]
+  checklists          Checklist[]
+  reports             Report[]
+
+  @@map("users") // Map this model to the 'users' table
+}
+
+model Post {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  isAnonymous Boolean     @default(false) @map("is_anonymous")
+  content     String
+  category    String
+  createdAt   DateTime    @default(now()) @map("created_at")
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postVotes   PostVote[]
+  comments    Comment[]
+
+  @@map("posts")
+}
+
+model PostVote {
+  userId    String    @map("user_id")
+  postId    String    @map("post_id")
+  voteType  Int       @map("vote_type")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId]) // Composite primary key
+  @@map("post_votes")
+}
+
+model Appointment {
+  id                  String      @id @default(uuid())
+  userId              String      @map("user_id")
+  title               String
+  description         String?
+  appointmentDatetime DateTime    @map("appointment_datetime")
+  location            String?
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @default(now()) @updatedAt @map("updated_at")
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("appointments")
+}
+
+model Comment {
+  id        String      @id @default(uuid())
+  postId    String      @map("post_id")
+  userId    String      @map("user_id")
+  content   String
+  createdAt DateTime    @default(now()) @map("created_at")
+  post      Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model JournalEntry {
+  id                  String      @id @default(uuid())
+  userId              String      @map("user_id")
+  entryDate           DateTime    @map("entry_date") @db.Date // Use @db.Date for SQL DATE type
+  moodRating          Int?        @map("mood_rating")
+  entryTextEncrypted String      @map("entry_text_encrypted")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @default(now()) @updatedAt @map("updated_at")
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryDate])
+  @@map("journal_entries")
+}
+
+model Resource {
+  id          String      @id @default(uuid())
+  title       String
+  content     String?
+  category    String?
+  externalUrl String?     @map("external_url")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at")
+
+  @@map("resources")
+}
+
+model Checklist {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  name        String
+  items       Json        @default("[]") // JSONB type in PostgreSQL
+  isTemplate  Boolean     @default(false) @map("is_template")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at")
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("checklists")
+}
+
+model Report {
+  id          String      @id @default(uuid())
+  reporterId  String      @map("reporter_id")
+  targetType  String      @map("target_type")
+  targetId    String      @map("target_id")
+  reason      String
+  status      String      @default("pending")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  reporter    User        @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
