@@ -45,8 +45,15 @@ const handleLogin = async () => {
     console.log('[FRONTEND DEBUG] User received:', response.data.user); // DEBUG: Check the user object
 
     if (response.data && response.data.token && response.data.user) {
-      // Correctly call setAuth with both token and user object
-      authStore.setAuth(response.data.token, response.data.user); // <--- CORRECTED CALL
+      // Ensure the user object passed to setAuth has 'displayName' and matches the expected type in the store
+      const user = {
+        id: response.data.user.id,
+        email: response.data.user.email,
+        role: response.data.user.role,
+        displayName: response.data.user.displayName, // Ensure displayName is included
+        // Add any other user properties you expect to store here
+      };
+      authStore.setAuth(response.data.token, user);
       console.log('[FRONTEND DEBUG] Token and User set in auth store. Redirecting...');
       router.push('/');
     } else {

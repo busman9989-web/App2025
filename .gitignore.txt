@@ -1,0 +1,17 @@
+# 1. (Optional, if you accidentally staged it) Remove .env from staging:
+#    git restore --staged .env
+
+# 2. Open or create .gitignore in your monorepo root
+#    Add '.env' to it. Save the file.
+
+# 3. Stage the .gitignore file (or its changes)
+git add .gitignore
+
+# 4. Commit all your staged changes
+git commit -m "refactor(api): Transition to Fastify; feat(auth): Implement persistent user session and API setup"
+
+# 5. Pull latest changes (always good practice before pushing)
+git pull origin main
+
+# 6. Push your changes to GitHub
+git push origin main

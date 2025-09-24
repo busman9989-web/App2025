@@ -48,6 +48,7 @@ import MoodTracker from '@/components/MoodTracker.vue';
 
 const auth = useAuthStore();
 
+// Generic icon component
 const Icon = (props: { path: VNode | VNode[], class?: string }) =>
   h('svg', {
     xmlns: 'http://www.w3.org/2000/svg',
@@ -58,6 +59,7 @@ const Icon = (props: { path: VNode | VNode[], class?: string }) =>
     'stroke-width': 2
   }, props.path);
 
+// Planner icon
 const PlannerIcon = () =>
   h(Icon, {
     class: 'h-7 w-7 text-teal-600',
@@ -68,6 +70,7 @@ const PlannerIcon = () =>
     })
   });
 
+// Journal icon
 const JournalIcon = () =>
   h(Icon, {
     class: 'h-7 w-7 text-blue-600',

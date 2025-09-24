@@ -1,3 +1,4 @@
+// packages/client/src/views/JournalView.vue
 <template>
   <div class="space-y-6">
     <div>
@@ -13,17 +14,30 @@ import { ref, onMounted } from 'vue';
 import api from '@/api';
 import JournalComposer from '@/components/JournalComposer.vue';
 import JournalEntryList from '@/components/JournalEntryList.vue';
-export interface JournalEntry { id: string; entry_date: string; mood_rating: number; entry_text: string; }
+
+// THIS IS THE KEY PART FOR FRONTEND EXPECTATIONS
+export interface JournalEntry {
+  id: string;
+  entry_date: string; // <-- Frontend expects this
+  mood_rating: number; // <-- Frontend expects this
+  entry_text: string;  // <-- Frontend expects this
+}
+
 const journalEntries = ref<JournalEntry[]>([]);
 const loading = ref(true);
+
 const fetchJournalEntries = async () => {
   loading.value = true;
   try {
     const endDate = new Date().toISOString().split('T')[0];
     const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const response = await api.get(`/api/journal?startDate=${startDate}&endDate=${endDate}`);
-    journalEntries.value = response.data;
-  } catch (error) { console.error("Failed to fetch journal entries:", error); } finally { loading.value = false; }
+    journalEntries.value = response.data; // This is where the frontend consumes the data
+  } catch (error) {
+    console.error("Failed to fetch journal entries:", error);
+  } finally {
+    loading.value = false;
+  }
 };
 onMounted(fetchJournalEntries);
 </script>

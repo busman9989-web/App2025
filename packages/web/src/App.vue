@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'; // Import onMounted
+import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import api from '@/api';
@@ -49,19 +49,28 @@ const authStore = useAuthStore();
 
 const handleLogout = async () => {
   try {
-    // Note: The backend logout endpoint simply confirms logout for JWT
-    // It doesn't actually invalidate the token, the client discards it.
-    await api.post('/api/auth/logout'); 
-    authStore.clearAuth();
-    router.push('/login');
+    // Attempt to log out on the backend first
+    await api.post('/api/auth/logout');
   } catch (error) {
-    console.error('Logout failed:', error);
-    alert('Logout failed. Please try again.');
+    console.error('Backend logout failed:', error);
+    // Even if backend fails, we should clear client-side state
+  } finally {
+    // Always clear client-side state and redirect
+    authStore.logout();
+    router.push('/login');
   }
 };
 
-onMounted(() => { // Call verifyAuth on mount to initialize authentication state
-  authStore.verifyAuth();
+// Make onMounted async to await the verifyAuth call
+onMounted(async () => {
+  await authStore.verifyAuth();
+
+  // Basic redirection if no token is found after verification
+  // and the user is on a route that requires authentication.
+  // A more robust solution involves Vue Router navigation guards.
+  if (!authStore.token && router.currentRoute.value.meta.requiresAuth) {
+    router.push('/login');
+  }
 });
 </script>
 
@@ -73,6 +82,4 @@ onMounted(() => { // Call verifyAuth on mount to initialize authentication state
 .nav-button {
   @apply px-4 py-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 transition-colors;
 }
-
-/* Add any other global styles for layout */
 </style>
