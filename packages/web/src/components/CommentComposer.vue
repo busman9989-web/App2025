@@ -7,10 +7,18 @@
         placeholder="Write your reply..."
         rows="4"
         required
-        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-teal-500 focus:border-teal-500"
+        class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg 
+               focus:ring-teal-500 focus:border-teal-500 dark:focus:ring-indigo-400 dark:focus:border-indigo-400
+               bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
       ></textarea>
       <div class="text-right mt-2">
-        <button type="submit" :disabled="isSubmitting" class="bg-teal-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-600 transition-colors">
+        <button 
+          type="submit" 
+          :disabled="isSubmitting" 
+          class="bg-teal-500 text-white font-bold py-2 px-4 rounded-lg 
+                 hover:bg-teal-600 dark:bg-indigo-600 dark:hover:bg-indigo-700 
+                 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           {{ isSubmitting ? 'Posting...' : 'Post Comment' }}
         </button>
       </div>
@@ -54,9 +62,9 @@ const submitComment = async () => {
 
 <style scoped>
 .composer-card {
-  @apply mt-6 bg-white rounded-xl border border-slate-200/80 p-4;
+  @apply mt-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 p-4 transition-colors;
 }
 .card-title {
-    @apply text-lg font-semibold text-slate-700 mb-2;
+    @apply text-lg font-semibold text-slate-700 dark:text-white mb-2 transition-colors;
 }
 </style>

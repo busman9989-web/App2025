@@ -3,38 +3,32 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 
-// This function now correctly points to port 3000
 const getBaseURL = () => {
   if (window.Capacitor) {
-    // Corrected port for Android Emulator
-    return 'http://10.0.2.2:3000'; 
+    return 'http://10.0.2.2:3000';
   } else {
-    // Corrected fallback port for web browser
     return import.meta.env.VITE_API_URL || 'http://localhost:3000';
   }
 };
 
 const api = axios.create({
   baseURL: getBaseURL(),
-  withCredentials: true,
+  // ✅ Ensures that cookies are sent with every request
+  withCredentials: true, 
 });
 
-// This interceptor correctly attaches your JWT to every request after login
-api.interceptors.request.use((config) => {
-  const authStore = useAuthStore();
-  if (authStore.token) {
-    config.headers.Authorization = `Bearer ${authStore.token}`;
-  }
-  return config;
-});
+// The old request interceptor for adding the Authorization header has been removed.
 
-// This interceptor will automatically log the user out if the token expires
+// This response interceptor is useful for handling expired sessions.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
       const authStore = useAuthStore();
-      authStore.logout();
+      // Avoids logout loops by checking if the user is supposed to be logged in.
+      if (authStore.isAuthenticated) {
+        authStore.logout();
+      }
     }
     return Promise.reject(error);
   }

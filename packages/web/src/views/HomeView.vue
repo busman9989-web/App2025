@@ -1,41 +1,37 @@
 <template>
-  <div class="space-y-8">
-    <!-- Header -->
+  <div class="space-y-8 p-4 bg-white dark:bg-[#0f172a] text-slate-800 dark:text-white min-h-screen transition-colors">
     <div>
-      <h1 class="text-2xl font-bold text-slate-800">
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-white transition-colors">
         Welcome, {{ auth.user?.displayName || 'Guest' }}
       </h1>
-      <p class="mt-1 text-slate-600">How can we support you today?</p>
+      <p class="mt-1 text-slate-600 dark:text-slate-400 transition-colors">How can we support you today?</p>
     </div>
 
-    <!-- Welcome Message -->
-    <div class="bg-gradient-to-r from-teal-50 to-blue-50 p-6 rounded-xl shadow-sm border border-slate-200/60">
-      <h2 class="text-lg font-semibold text-slate-800 mb-2">Good to see you here!</h2>
-      <p class="text-slate-600 text-sm">
+    <div class="bg-gradient-to-r from-teal-50 to-blue-50 dark:from-slate-700 dark:to-slate-700 p-6 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-700 transition-colors">
+      <h2 class="text-lg font-semibold text-slate-800 dark:text-white mb-2 transition-colors">Good to see you here!</h2>
+      <p class="text-slate-600 dark:text-slate-400 text-sm transition-colors">
         This is your personal space to plan, journal, and track your mood. 
         Use the cards below to quickly access your tools or check in with yourself.
       </p>
     </div>
 
-    <!-- Navigation Cards -->
     <div class="grid grid-cols-2 gap-4">
       <HomeNavCard
         to="/planner"
         :icon="PlannerIcon"
         title="Planner"
         description="Appointments & lists."
-        class="bg-teal-50"
+        class="bg-teal-50 dark:bg-slate-700 dark:text-teal-400"
       />
       <HomeNavCard
         to="/journal"
         :icon="JournalIcon"
         title="Journal"
         description="A secure space."
-        class="bg-blue-50"
+        class="bg-blue-50 dark:bg-slate-700 dark:text-blue-400"
       />
     </div>
 
-    <!-- Mood Tracker -->
     <MoodTracker />
   </div>
 </template>
@@ -43,8 +39,8 @@
 <script setup lang="ts">
 import { h, VNode } from 'vue';
 import { useAuthStore } from '@/stores/auth';
-import HomeNavCard from '@/components/HomeNavCard.vue';
-import MoodTracker from '@/components/MoodTracker.vue';
+import HomeNavCard from '@/components/HomeNavCard.vue'; // Assuming HomeNavCard handles its own dark mode
+import MoodTracker from '@/components/MoodTracker.vue'; // Assuming MoodTracker handles its own dark mode
 
 const auth = useAuthStore();
 
@@ -59,10 +55,10 @@ const Icon = (props: { path: VNode | VNode[], class?: string }) =>
     'stroke-width': 2
   }, props.path);
 
-// Planner icon
+// Planner icon - updated to use dark mode text color for stroke
 const PlannerIcon = () =>
   h(Icon, {
-    class: 'h-7 w-7 text-teal-600',
+    class: 'h-7 w-7 text-teal-600 dark:text-teal-400 transition-colors', // Added dark:text-teal-400
     path: h('path', {
       'stroke-linecap': 'round',
       'stroke-linejoin': 'round',
@@ -70,10 +66,10 @@ const PlannerIcon = () =>
     })
   });
 
-// Journal icon
+// Journal icon - updated to use dark mode text color for stroke
 const JournalIcon = () =>
   h(Icon, {
-    class: 'h-7 w-7 text-blue-600',
+    class: 'h-7 w-7 text-blue-600 dark:text-blue-400 transition-colors', // Added dark:text-blue-400
     path: h('path', {
       'stroke-linecap': 'round',
       'stroke-linejoin': 'round',

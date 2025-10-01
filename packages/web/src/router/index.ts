@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+
+// Component Imports
 import HomeView from '../views/HomeView.vue';
 import LoginView from '@/views/LoginView.vue';
 import RegisterView from '@/views/RegisterView.vue';
@@ -7,9 +9,11 @@ import CommunityView from '@/views/CommunityView.vue';
 import PostDetailView from '@/views/PostDetailView.vue';
 import SettingsView from '@/views/SettingsView.vue';
 import JournalView from '@/views/JournalView.vue';
-import ChecklistView from '@/views/ChecklistView.vue';
 import ResourcesView from '@/views/ResourcesView.vue';
-import ResourceDetailView from '@/views/ResourceDetailView.vue'; // NEW IMPORT
+import ResourceDetailView from '@/views/ResourceDetailView.vue';
+import PlannerView from '@/views/PlannerView.vue';
+import ChecklistView from '@/views/ChecklistView.vue';
+
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -22,13 +26,13 @@ const routes: Array<RouteRecordRaw> = [
     path: '/login',
     name: 'Login',
     component: LoginView,
-    meta: { requiresAuth: false }
+    meta: { guestOnly: true }
   },
   {
     path: '/register',
     name: 'Register',
     component: RegisterView,
-    meta: { requiresAuth: false }
+    meta: { guestOnly: true }
   },
   {
     path: '/community',
@@ -56,18 +60,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/checklists',
-    name: 'Checklists',
-    component: ChecklistView,
-    meta: { requiresAuth: true }
-  },
-  {
     path: '/resources',
     name: 'Resources',
     component: ResourcesView,
     meta: { requiresAuth: true }
   },
-  { // NEW ROUTE FOR RESOURCE DETAIL
+  {
     path: '/resources/:id',
     name: 'ResourceDetail',
     component: ResourceDetailView,
@@ -75,9 +73,21 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/:catchAll(.*)', // Catch-all route for 404
+    path: '/planner',
+    name: 'Planner',
+    component: PlannerView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/checklists',
+    name: 'Checklists',
+    component: ChecklistView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/:catchAll(.*)',
     name: 'NotFound',
-    redirect: '/' // Redirect to home or a dedicated 404 page
+    redirect: '/'
   }
 ];
 
@@ -86,15 +96,33 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  if (to.meta.requiresAuth && !authStore.token) {
-    next('/login');
-  } else if ((to.name === 'Login' || to.name === 'Register') && authStore.token) {
-    next('/');
-  } else {
-    next();
+
+  // ✅ New: Skip the auth check if a logout is actively in progress.
+  // This prevents the unnecessary 'verifyAuth' call and the 401 console error.
+  if (authStore.isLoggingOut) {
+    return next();
   }
+
+  // On page load or refresh, verify the user's session from their cookie.
+  if (authStore.user === null) {
+    await authStore.verifyAuth();
+  }
+
+  const isAuthenticated = authStore.isAuthenticated;
+
+  // --- Logic for Guest-Only Routes ---
+  if (to.meta.guestOnly && isAuthenticated) {
+    return next({ name: 'Home' });
+  }
+
+  // --- Logic for Protected Routes ---
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    return next({ name: 'Login' });
+  }
+
+  next();
 });
 
 export default router;

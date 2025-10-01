@@ -1,9 +1,9 @@
 // packages/client/src/views/JournalView.vue
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 p-4 bg-white dark:bg-[#0f172a] text-slate-800 dark:text-white min-h-screen transition-colors">
     <div>
-      <h1 class="text-2xl font-bold text-slate-800">Private Journal</h1>
-      <p class="mt-1 text-slate-600">A secure space for your thoughts and feelings. Only you can see these entries.</p>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-white transition-colors">Private Journal</h1>
+      <p class="mt-1 text-slate-600 dark:text-slate-400 transition-colors">A secure space for your thoughts and feelings. Only you can see these entries.</p>
     </div>
     <JournalComposer @entry-saved="fetchJournalEntries" />
     <JournalEntryList :entries="journalEntries" :loading="loading" />
@@ -12,8 +12,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import api from '@/api';
-import JournalComposer from '@/components/JournalComposer.vue';
-import JournalEntryList from '@/components/JournalEntryList.vue';
+import JournalComposer from '@/components/JournalComposer.vue'; // Assuming JournalComposer handles its own dark mode
+import JournalEntryList from '@/components/JournalEntryList.vue'; // Assuming JournalEntryList handles its own dark mode
 
 // THIS IS THE KEY PART FOR FRONTEND EXPECTATIONS
 export interface JournalEntry {
