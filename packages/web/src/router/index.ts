@@ -13,7 +13,7 @@ import ResourcesView from '@/views/ResourcesView.vue';
 import ResourceDetailView from '@/views/ResourceDetailView.vue';
 import PlannerView from '@/views/PlannerView.vue';
 import ChecklistView from '@/views/ChecklistView.vue';
-
+import ProfileView from '@/views/ProfileView.vue'; // <-- Add this import
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -82,6 +82,14 @@ const routes: Array<RouteRecordRaw> = [
     path: '/checklists',
     name: 'Checklists',
     component: ChecklistView,
+    meta: { requiresAuth: true }
+  },
+  // --- ADD THIS ROUTE for ProfileView ---
+  {
+    path: '/profile/:userId',
+    name: 'Profile',
+    component: ProfileView,
+    props: true,
     meta: { requiresAuth: true }
   },
   {

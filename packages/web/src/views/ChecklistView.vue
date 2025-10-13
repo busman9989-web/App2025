@@ -21,9 +21,27 @@
         <button 
           type="submit" 
           :disabled="isCreating || !newChecklistName.trim()"
-          class="bg-teal-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-600 transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="group relative inline-flex items-center justify-center gap-2 rounded-xl
+                 border border-slate-300/70 dark:border-slate-600/70 bg-transparent
+                 px-4 py-2 text-slate-700 dark:text-slate-100 hover:border-cyan-400
+                 hover:text-cyan-700 dark:hover:text-cyan-300 focus:outline-none
+                 focus-visible:ring-2 focus-visible:ring-cyan-400 transition
+                 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
         >
-          {{ isCreating ? 'Creating...' : 'Create' }}
+          <svg
+            class="h-5 w-5 transition-transform group-hover:-translate-y-0.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.8"
+              d="M12 5v14m7-7H5"
+            />
+          </svg>
+          <span class="font-medium">{{ isCreating ? 'Creating...' : 'Create' }}</span>
         </button>
       </form>
     </div>
@@ -31,8 +49,24 @@
     <div v-if="loading" class="text-center text-slate-500 dark:text-slate-400 py-8 transition-colors">Loading checklists...</div>
     <div v-else-if="error" class="text-center text-red-500 dark:text-red-400 py-8 transition-colors">
       <p>Could not load checklists.</p>
-      <button @click="fetchChecklists" class="mt-4 px-4 py-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 transition-colors">
-        Retry
+      <button
+        @click="fetchChecklists"
+        class="group relative inline-flex items-center justify-center gap-2 rounded-xl
+               border border-slate-300/70 dark:border-slate-600/70 bg-transparent
+               px-4 py-2 text-slate-700 dark:text-slate-100 hover:border-cyan-400
+               hover:text-cyan-700 dark:hover:text-cyan-300 focus:outline-none
+               focus-visible:ring-2 focus-visible:ring-cyan-400 transition
+               mt-4"
+      >
+        <svg
+          class="h-5 w-5 transition-transform group-hover:-translate-y-0.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4v5h.582M20 20v-5h-.581M5 9l7 7 7-7"/>
+        </svg>
+        <span class="font-medium">Retry</span>
       </button>
     </div>
     <div v-else-if="checklists.length === 0" class="text-center text-slate-500 dark:text-slate-400 py-8 transition-colors">
@@ -54,7 +88,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import api from '@/api';
-import Checklist from '@/components/Checklist.vue'; // Assuming Checklist.vue also handles its own dark mode
+import Checklist from '@/components/Checklist.vue';
 
 export interface ChecklistItem {
   text: string;
@@ -80,12 +114,9 @@ const fetchChecklists = async () => {
   loading.value = true;
   error.value = false;
   try {
-    console.log('Fetching checklists...');
     const response = await api.get('/api/checklists');
-    console.log('Checklists response:', response.data);
     checklists.value = response.data;
   } catch (err) {
-    console.error("Failed to fetch checklists:", err);
     error.value = true;
   } finally {
     loading.value = false;
@@ -94,24 +125,15 @@ const fetchChecklists = async () => {
 
 const createChecklist = async () => {
   if (!newChecklistName.value.trim() || isCreating.value) return;
-  
   isCreating.value = true;
   try {
-    const defaultItems: ChecklistItem[] = [
-      { text: "Add your first task", completed: false },
-      { text: "Add more tasks as needed", completed: false },
-    ];
-    
     const response = await api.post('/api/checklists', {
       name: newChecklistName.value.trim(),
-      items: defaultItems
+      items: []
     });
-    
-    console.log('Created checklist:', response.data);
     newChecklistName.value = '';
-    await fetchChecklists(); // Refresh the list
+    await fetchChecklists();
   } catch (err) {
-    console.error("Failed to create checklist:", err);
     alert('Could not create the checklist. Please try again.');
   } finally {
     isCreating.value = false;
@@ -133,5 +155,5 @@ onMounted(fetchChecklists);
 </script>
 
 <style scoped>
-/* No scoped styles needed here, as Tailwind classes handle the theming */
+/* No extra styles needed; Tailwind classes do all the work */
 </style>

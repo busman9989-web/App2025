@@ -1,9 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider        = "prisma-client-js"
-  // This line fixes the Docker runtime error
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
@@ -12,42 +8,56 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Map your SQL tables to Prisma models
 model User {
-  id                    String            @id @default(uuid()) @map("id")
-  email                 String            @unique
-  passwordHash          String            @map("password_hash")
-  role                  String            @default("user")
-  createdAt             DateTime          @default(now()) @map("created_at")
-  isVerified            Boolean           @default(false) @map("is_verified")
-  verificationToken     String?           @map("verification_token")
-  twoFaSecret           String?           @map("two_fa_secret")
-  twoFaEnabled          Boolean           @default(false) @map("two_fa_enabled")
-  displayNameEncrypted  String?           @map("display_name_encrypted")
-  statusEncrypted       String?           @map("status_encrypted")
-  posts                 Post[]
-  postVotes             PostVote[]
-  appointments          Appointment[]
-  comments              Comment[]
-  journalEntries        JournalEntry[]
-  checklists            Checklist[]
-  reports               Report[]
-  // NEW: Add relation for ResourceReview
-  resourceReviews       ResourceReview[]  // Renamed to avoid clash, more descriptive
+  id                   String   @id @default(uuid()) @map("id")
+  email                String   @unique
+  passwordHash         String   @map("password_hash")
+  role                 String   @default("user")
+  createdAt            DateTime @default(now()) @map("created_at")
+  isVerified           Boolean  @default(false) @map("is_verified")
+  verificationToken    String?  @map("verification_token")
+  twoFaSecret          String?  @map("two_fa_secret")
+  twoFaEnabled         Boolean  @default(false) @map("two_fa_enabled")
+  displayNameEncrypted String?  @map("display_name_encrypted")
+  statusEncrypted      String?  @map("status_encrypted")
+  profilePictureUrl    String?  @map("profile_picture_url")
+  bioEncrypted         String?  @map("bio_encrypted") // NEW
+  emailNotifications   Boolean? @default(true) @map("email_notifications")
+  appNotifications     Boolean? @default(true) @map("app_notifications")
 
-  @@map("users") // Map this model to the 'users' table
+  posts           Post[]
+  postVotes       PostVote[]
+  appointments    Appointment[]
+  comments        Comment[]
+  journalEntries  JournalEntry[]
+  checklists      Checklist[]
+  reports         Report[]
+  resourceReviews ResourceReview[]
+  dailyStatuses   DailyStatus[]
+  votes           Vote[]
+  plannerEvents   PlannerEvent[]
+
+  chatThreadParticipants ChatThreadParticipant[]
+  chatMessages           ChatMessage[]
+
+  requestedFriends Friendship[] @relation("RequestedFriends")
+  receivedFriends  Friendship[] @relation("ReceivedFriends")
+
+  @@map("users")
 }
 
 model Post {
-  id          String    @id @default(uuid())
-  userId      String    @map("user_id")
-  isAnonymous Boolean   @default(false) @map("is_anonymous")
+  id          String  @id @default(uuid())
+  userId      String  @map("user_id")
+  isAnonymous Boolean @default(false) @map("is_anonymous")
+  title       String?
   content     String
   category    String
-  createdAt   DateTime  @default(now()) @map("created_at")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   postVotes   PostVote[]
   comments    Comment[]
+  votes       Vote[]
 
   @@map("posts")
 }
@@ -59,94 +69,157 @@ model PostVote {
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  @@id([userId, postId]) // Composite primary key
+  @@id([userId, postId])
   @@map("post_votes")
 }
 
 model Appointment {
-  id                  String    @id @default(uuid())
-  userId              String    @map("user_id")
+  id                  String   @id @default(uuid())
+  userId              String   @map("user_id")
   title               String
   description         String?
-  appointmentDatetime DateTime  @map("appointment_datetime")
+  appointmentDatetime DateTime @map("appointment_datetime")
   location            String?
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
-  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("appointments")
 }
 
 model Comment {
-  id        String   @id @default(uuid())
-  postId    String   @map("post_id")
-  userId    String   @map("user_id")
-  content   String
-  createdAt DateTime @default(now()) @map("created_at")
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String        @id @default(uuid())
+  postId         String?       @map("post_id")
+  journalEntryId String?       @map("journal_entry_id")
+  userId         String        @map("user_id")
+  title          String?
+  content        String
+  createdAt      DateTime      @default(now()) @map("created_at")
+  parentId       String?       @map("parent_id")
+  parent         Comment?      @relation("ReplyToComment", fields: [parentId], references: [id], onDelete: Cascade)
+  replies        Comment[]     @relation("ReplyToComment")
+  votes          Vote[]
+  post           Post?         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("comments")
 }
 
 model JournalEntry {
-  id                 String   @id @default(uuid())
-  userId             String   @map("user_id")
-  entryDate          DateTime @map("entry_date") @db.Date // Use @db.Date for SQL DATE type
-  moodRating         Int?     @map("mood_rating")
-  entryTextEncrypted String   @map("entry_text_encrypted")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String    @id @default(uuid())
+  userId             String    @map("user_id")
+  entryDate          DateTime  @map("entry_date") @db.Date
+  moodRating         Int?      @map("mood_rating")
+  entryTextEncrypted String    @map("entry_text_encrypted")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments           Comment[]
+  votes              Vote[]
 
   @@unique([userId, entryDate])
   @@map("journal_entries")
 }
 
 model Resource {
-  id          String          @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
-  content     String?         @db.Text // Can be long for articles, guides
-  category    String?         // e.g., 'Mental Health', 'Physical Health'
-  externalUrl String?         @map("external_url")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at")
-  // NEW: Add relation for ResourceReview
+  content     String?  @db.Text
+  category    String?
+  externalUrl String?  @map("external_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
   reviews     ResourceReview[]
+  votes       Vote[]
 
   @@map("resources")
 }
 
-// NEW MODEL: ResourceReview
 model ResourceReview {
-  id          String    @id @default(uuid())
-  rating      Int       // 1 to 5 stars
-  content     String?   @db.Text // Optional review text
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  id         String   @id @default(uuid())
+  rating     Int
+  content    String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  resourceId String   @map("resource_id")
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes      Vote[]
 
-  resourceId  String    @map("resource_id")
-  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-
-  userId      String    @map("user_id")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([resourceId, userId]) // A user can only review a specific resource once
+  @@unique([resourceId, userId])
   @@map("resource_reviews")
 }
 
+model Vote {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  voteType  Int      @map("vote_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  postId          String?
+  post            Post?          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  journalEntryId  String?        @map("journal_entry_id")
+  journalEntry    JournalEntry?  @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  resourceReviewId String?       @map("resource_review_id")
+  resourceReview   ResourceReview? @relation(fields: [resourceReviewId], references: [id], onDelete: Cascade)
+  commentId       String?        @map("comment_id")
+  comment         Comment?       @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  resourceId      String?        @map("resource_id")
+  resource        Resource?      @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId], name: "UserPostVote")
+  @@unique([userId, journalEntryId], name: "UserJournalEntryVote")
+  @@unique([userId, resourceReviewId], name: "UserResourceReviewVote")
+  @@unique([userId, commentId], name: "UserCommentVote")
+  @@unique([userId, resourceId], name: "UserResourceVote")
+  @@map("votes")
+}
 
 model Checklist {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  name       String
+  items      Json     @default("[]")
+  isTemplate Boolean  @default(false) @map("is_template")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("checklists")
+}
+
+model DailyStatus {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  statusDate DateTime @map("status_date") @db.Date
+  statusText String   @map("status_text")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, statusDate])
+  @@map("daily_statuses")
+}
+
+model PlannerEvent {
   id          String   @id @default(uuid())
   userId      String   @map("user_id")
-  name        String
-  items       Json     @default("[]") // JSONB type in PostgreSQL
-  isTemplate  Boolean  @default(false) @map("is_template")
+  title       String
+  description String?
+  start       DateTime
+  end         DateTime?
+  isAllDay    Boolean  @default(false) @map("is_all_day")
+  location    String?
+  category    String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("checklists")
+  @@map("planner_events")
 }
 
 model Report {
@@ -160,4 +233,54 @@ model Report {
   reporter   User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
 
   @@map("reports")
+}
+
+model ChatThread {
+  id            String   @id @default(uuid())
+  name          String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  participants  ChatThreadParticipant[]
+  messages      ChatMessage[]
+
+  @@map("chat_threads")
+}
+
+model ChatThreadParticipant {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  threadId  String     @map("thread_id")
+  joinedAt  DateTime   @default(now()) @map("joined_at")
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread    ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, threadId])
+  @@map("chat_thread_participants")
+}
+
+model ChatMessage {
+  id        String     @id @default(uuid())
+  threadId  String     @map("thread_id")
+  senderId  String     @map("sender_id")
+  text      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  thread    ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender    User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model Friendship {
+  id           String   @id @default(uuid())
+  requesterId  String   @map("requester_id")
+  addresseeId  String   @map("addressee_id")
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  requester User @relation("RequestedFriends", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("ReceivedFriends", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@map("friendships")
 }

@@ -1,5 +1,5 @@
 <template>
-  <footer class="bg-white/90 backdrop-blur-md sticky bottom-0 z-20 border-t border-slate-200">
+  <footer class="bg-gray-900/90 backdrop-blur-md sticky bottom-0 z-20 border-t border-gray-700 lg:hidden">
     <nav class="flex justify-around items-center h-16">
       <RouterLink to="/" class="nav-item">
         <HomeIcon />
@@ -26,7 +26,7 @@
       </RouterLink>
     </nav>
   </footer>
-</template>
+  </template>
 
 <script setup lang="ts">
 import { RouterLink, useRouter } from 'vue-router';
@@ -35,6 +35,7 @@ import { h, VNode } from 'vue';
 const router = useRouter();
 const navigate = () => { router.push('/journal'); };
 
+// Icon definitions remain unchanged as the icon colors are controlled by the parent text color.
 const Icon = (props: { path: VNode | VNode[], class?: string }) => h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: props.class || 'h-6 w-6', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': 2 }, props.path);
 const HomeIcon = () => h(Icon, { path: h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' }) });
 const SupportIcon = () => h(Icon, { path: [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' }), h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M15 11a3 3 0 11-6 0 3 3 0 016 0z' })] });
@@ -44,8 +45,9 @@ const PlusIcon = () => h(Icon, { path: h('path', { 'stroke-linecap': 'round', 's
 </script>
 
 <style scoped>
-.nav-item { @apply flex flex-col items-center justify-center space-y-1 w-full transition-colors duration-200 text-slate-500 hover:text-teal-500; }
-.router-link-exact-active { @apply text-teal-600; }
+/* UPDATED TAILWIND @APPLY CLASSES FOR DARK THEME */
+.nav-item { @apply flex flex-col items-center justify-center space-y-1 w-full transition-colors duration-200 text-gray-400 hover:text-cyan-400; }
+.router-link-exact-active { @apply text-cyan-500; }
 .nav-label { @apply text-xs font-medium; }
-.add-button { @apply w-16 h-16 -mt-8 bg-teal-500 rounded-full shadow-lg flex items-center justify-center transform hover:scale-105 transition-transform duration-200 ring-4 ring-white; }
+.add-button { @apply w-16 h-16 -mt-8 bg-cyan-700 rounded-full shadow-lg flex items-center justify-center transform hover:scale-105 transition-transform duration-200 ring-4 ring-gray-900; }
 </style>

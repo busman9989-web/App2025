@@ -91,6 +91,7 @@ import { reactive, ref, computed, nextTick, PropType } from 'vue';
 import api from '@/api';
 import type { ChecklistType } from '@/views/ChecklistView.vue';
 
+// Note: defineProps and defineEmits are macros and should not be imported
 const props = defineProps({
   initialChecklist: {
     type: Object as PropType<ChecklistType>,
@@ -142,13 +143,15 @@ const saveChanges = async () => {
 };
 
 const addNewItem = () => {
+  // FIX: New items are created with an empty string
+  const newItemText = ""; 
   checklist.items.push({
-    text: "New task",
+    text: newItemText,
     completed: false
   });
   
   const newIndex = checklist.items.length - 1;
-  startEditing(newIndex, "New task");
+  startEditing(newIndex, newItemText);
 };
 
 const removeItem = (index: number) => {
@@ -163,12 +166,19 @@ const startEditing = (index: number, text: string) => {
   editingText.value = text;
   nextTick(() => {
     editInput.value?.focus();
-    editInput.value?.select();
+    // Select the text only if it's not empty
+    if (text.length > 0) { 
+      editInput.value?.select();
+    }
   });
 };
 
 const finishEditing = () => {
-  if (editingIndex.value >= 0 && editingText.value.trim()) {
+  // If the text is empty after editing, remove the item
+  if (editingIndex.value >= 0 && !editingText.value.trim()) {
+    checklist.items.splice(editingIndex.value, 1);
+    saveChanges();
+  } else if (editingIndex.value >= 0 && editingText.value.trim()) {
     checklist.items[editingIndex.value].text = editingText.value.trim();
     saveChanges();
   }
@@ -176,6 +186,10 @@ const finishEditing = () => {
 };
 
 const cancelEditing = () => {
+  // If we cancel editing a brand new item (which has empty text), remove it.
+  if (editingIndex.value >= 0 && !checklist.items[editingIndex.value].text.trim()) {
+    checklist.items.splice(editingIndex.value, 1);
+  }
   editingIndex.value = -1;
   editingText.value = '';
 };
@@ -194,3 +208,7 @@ const deleteChecklist = async () => {
   }
 };
 </script>
+
+<style scoped>
+/* Keep this empty or remove it entirely to prevent further CSS compile errors */
+</style>

@@ -2,26 +2,58 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 
+const getInitialTheme = (): 'light' | 'dark' => {
+    // 1. Check for stored preference
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+        return storedTheme;
+    }
+    // 2. Fallback to OS preference
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+    }
+    // 3. Default
+    return 'light'; 
+};
+
 export const useThemeStore = defineStore('theme', () => {
-  // --- REVERTED CHANGE ---
-  // Default to 'light' if no theme is found in localStorage
-  const theme = ref<'light' | 'dark'>(localStorage.getItem('theme') as 'light' | 'dark' || 'light');
+    // Initialize state from local storage or OS preference
+    const theme = ref<'light' | 'dark'>(getInitialTheme());
 
-  const applyTheme = (newTheme: 'light' | 'dark') => {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(newTheme);
-    localStorage.setItem('theme', newTheme);
-    theme.value = newTheme;
-  };
+    // Function to physically apply the class to the root element
+    const applyThemeClass = (newTheme: 'light' | 'dark') => {
+        const root = document.documentElement;
+        // Ensure only 'dark' is managed; light mode is the absence of 'dark'
+        if (newTheme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+    };
 
-  const toggleTheme = () => {
-    const newTheme = theme.value === 'light' ? 'dark' : 'light';
-    applyTheme(newTheme);
-  };
+    // Public action to set and save the theme
+    const setTheme = (newTheme: 'light' | 'dark') => {
+        theme.value = newTheme;
+        localStorage.setItem('theme', newTheme);
+        applyThemeClass(newTheme);
+    };
 
-  // run on init
-  watch(theme, (newTheme) => applyTheme(newTheme), { immediate: true });
+    // Public action to toggle the theme
+    const toggleTheme = () => {
+        const newTheme = theme.value === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+    };
+    
+    // **IMPORTANT: Initial theme application**
+    // We will call this public action in main.ts to ensure it runs early.
+    const initializeTheme = () => {
+        applyThemeClass(theme.value);
+    }
 
-  return { theme, applyTheme, toggleTheme };
+    return { 
+        theme, 
+        setTheme, 
+        toggleTheme, 
+        initializeTheme // Export the function to call on app startup
+    };
 });

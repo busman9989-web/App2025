@@ -1,5 +1,3 @@
-// packages/web/src/api.ts
-
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 
@@ -33,5 +31,18 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// --- UPDATED FUNCTION FOR PROFILE IMAGE UPLOAD ---
+/**
+ * Upload user profile avatar.
+ * @param formData FormData containing an "avatar" field (image file)
+ * @returns Axios response
+ */
+export async function uploadAvatar(formData: FormData) {
+  // Route changed from '/api/users/me/avatar' to '/avatar' to match your Fastify backend
+  return api.post('/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
 
 export default api;

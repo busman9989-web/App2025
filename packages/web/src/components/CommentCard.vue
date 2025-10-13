@@ -5,18 +5,39 @@
     :style="{ borderColor: `hsl(${(depth * 40) % 360}, ${darkThemeActive ? '20%' : '30%'}, ${darkThemeActive ? '40%' : '80%'})` }"
   >
     <div class="flex items-start space-x-3">
-      <div
-        class="w-8 h-8 bg-slate-300 dark:bg-slate-700 rounded-full flex items-center justify-center 
-               text-slate-600 dark:text-slate-300 font-semibold text-sm flex-shrink-0 transition-colors"
-      >
-        {{ comment.authorName ? comment.authorName.charAt(0).toUpperCase() : '?' }}
-      </div>
+      <!-- Avatar (link to user profile, only if not anonymous) -->
+      <template v-if="comment.userId">
+        <router-link
+          :to="`/profile/${comment.userId}`"
+          class="w-8 h-8 flex-shrink-0"
+          @click.native.stop
+        >
+          <template v-if="comment.profilePictureUrl">
+            <img :src="comment.profilePictureUrl" alt="avatar" class="w-8 h-8 rounded-full object-cover" />
+          </template>
+          <template v-else>
+            <div class="w-8 h-8 bg-slate-300 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 font-semibold text-sm">
+              {{ comment.authorName ? comment.authorName.charAt(0).toUpperCase() : '?' }}
+            </div>
+          </template>
+        </router-link>
+      </template>
+      <template v-else>
+        <div class="w-8 h-8 bg-slate-300 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 font-semibold text-sm">
+          {{ comment.authorName ? comment.authorName.charAt(0).toUpperCase() : '?' }}
+        </div>
+      </template>
 
       <div class="flex-grow">
         <div class="flex items-center space-x-2 mb-1">
-          <span class="font-semibold text-slate-800 dark:text-white text-sm transition-colors">
-            {{ comment.authorName || 'Anonymous' }}
-          </span>
+          <template v-if="comment.userId">
+            <router-link :to="`/profile/${comment.userId}`" class="font-semibold text-slate-800 dark:text-white text-sm transition-colors hover:underline" @click.native.stop>
+              {{ comment.authorName || 'Anonymous' }}
+            </router-link>
+          </template>
+          <template v-else>
+            <span class="font-semibold text-slate-800 dark:text-white text-sm">{{ comment.authorName || 'Anonymous' }}</span>
+          </template>
           <span class="text-xs text-slate-500 dark:text-slate-400 transition-colors">{{ formatTimestamp(comment.createdAt) }}</span>
         </div>
 
@@ -24,11 +45,11 @@
 
         <div class="flex items-center space-x-4 text-xs text-slate-500 dark:text-slate-400 transition-colors">
           <button
-            @click="handleVote('like')"
+            @click.stop="handleVote('like')"
             :disabled="isVoting"
             :class="[
               'flex items-center space-x-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors',
-              userVote === 'like' ? 'text-blue-600 dark:text-blue-400' : ''
+              localUserVoteString === 'like' ? 'text-blue-600 dark:text-blue-400' : ''
             ]"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -40,11 +61,11 @@
           </button>
 
           <button
-            @click="handleVote('dislike')"
+            @click.stop="handleVote('dislike')"
             :disabled="isVoting"
             :class="[
               'flex items-center space-x-1 hover:text-red-600 dark:hover:text-red-400 transition-colors',
-              userVote === 'dislike' ? 'text-red-600 dark:text-red-400' : ''
+              localUserVoteString === 'dislike' ? 'text-red-600 dark:text-red-400' : ''
             ]"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -56,7 +77,7 @@
           </button>
 
           <button 
-            @click="toggleReplyForm" 
+            @click.stop="toggleReplyForm" 
             class="flex items-center space-x-1 hover:text-teal-600 dark:hover:text-indigo-400 transition-colors"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -88,7 +109,7 @@
           />
           <button
             v-if="(comment.replies?.length || 0) > replyLimit"
-            @click="showMoreReplies"
+            @click.stop="showMoreReplies"
             class="text-xs font-bold text-teal-700 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
           >
             View more replies
@@ -104,15 +125,17 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import api from '@/api';
 import CommentForm from './CommentForm.vue';
 import { useAuthStore } from '@/stores/auth';
-import { useThemeStore } from '@/stores/theme'; // Import the theme store
+import { useThemeStore } from '@/stores/theme';
 
 interface Comment {
   id: string;
   content: string;
   createdAt: string;
   authorName: string;
+  userId?: string | null;
+  profilePictureUrl?: string;
   voteCount: number;
-  userVote: 'like' | 'dislike' | null;
+  userVote: number; // 1 | -1 | 0
   replies?: Comment[];
 }
 
@@ -125,27 +148,29 @@ const props = defineProps<{
 const emit = defineEmits(['comment-posted']);
 
 const authStore = useAuthStore();
-const themeStore = useThemeStore(); // Initialize the theme store
+const themeStore = useThemeStore();
 
-// Computed property to check if dark theme is active
 const darkThemeActive = computed(() => themeStore.theme === 'dark');
 
-// State
 const showReplyForm = ref(false);
 const replyLimit = ref(3);
 
 const localVoteCount = ref(0);
-const userVote = ref<'like' | 'dislike' | null>(null);
+const localUserVote = ref<number>(0);
 const isVoting = ref(false);
+
+const localUserVoteString = computed<'like' | 'dislike' | null>(() => {
+  if (localUserVote.value === 1) return 'like';
+  if (localUserVote.value === -1) return 'dislike';
+  return null;
+});
 
 onMounted(() => {
   localVoteCount.value = props.comment.voteCount;
-  userVote.value = props.comment.userVote;
+  localUserVote.value = props.comment.userVote;
 });
 
-const displayedReplies = computed(() => {
-  return (props.comment.replies || []).slice(0, replyLimit.value);
-});
+const displayedReplies = computed(() => (props.comment.replies || []).slice(0, replyLimit.value));
 
 const showMoreReplies = () => {
   replyLimit.value += 3;
@@ -159,28 +184,22 @@ const handleVote = async (voteType: 'like' | 'dislike') => {
   if (isVoting.value) return;
   isVoting.value = true;
 
-  const originalVote = userVote.value;
+  const originalVote = localUserVote.value;
   const originalCount = localVoteCount.value;
 
-  if (userVote.value === voteType) {
-    userVote.value = null;
-    localVoteCount.value += (voteType === 'like' ? -1 : 1);
-  } else {
-    if (userVote.value === 'like') localVoteCount.value--;
-    if (userVote.value === 'dislike') localVoteCount.value++;
-    userVote.value = voteType;
-    localVoteCount.value += (voteType === 'like' ? 1 : -1);
-  }
+  const numeric = voteType === 'like' ? 1 : -1;
+  const sendType = localUserVote.value === numeric ? 0 : numeric;
 
-  const numericVote =
-    userVote.value === 'like' ? 1 :
-    userVote.value === 'dislike' ? -1 : 0;
+  // optimistic:
+  localVoteCount.value += (sendType - localUserVote.value);
+  localUserVote.value = sendType;
 
   try {
-    await api.post(`/api/comments/${props.comment.id}/vote`, { voteType: numericVote });
-  } catch (error) {
-    console.error("Failed to submit vote:", error);
-    userVote.value = originalVote;
+    await api.post(`/api/comments/${props.comment.id}/vote`, { voteType: sendType });
+  } catch (err) {
+    console.error('Failed to vote:', err);
+    // revert
+    localUserVote.value = originalVote;
     localVoteCount.value = originalCount;
   } finally {
     isVoting.value = false;
@@ -205,22 +224,17 @@ const handleCommentPosted = (newComment?: Comment) => {
   emit('comment-posted');
 };
 
-const formatTimestamp = (timestamp: string): string => {
+const formatTimestamp = (timestamp: string) => {
   if (!timestamp) return 'Unknown time';
-  const date = new Date(timestamp);
+  const d = new Date(timestamp);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSeconds = Math.round(diffMs / 1000);
-  const diffMins = Math.round(diffSeconds / 60);
-  const diffHours = Math.round(diffMins / 60);
-  const diffDays = Math.round(diffHours / 24);
-
-  if (diffSeconds < 60) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  return date.toLocaleDateString('en-GB');
+  const diff = Math.floor((now.getTime() - d.getTime())/1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  const days = Math.floor(diff/86400);
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString();
 };
 </script>
 

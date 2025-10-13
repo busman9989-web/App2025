@@ -1,5 +1,3 @@
-// packages/api/tsup.config.ts (FINALIZED)
-
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
@@ -16,7 +14,8 @@ export default defineConfig({
   clean: true,
   splitting: false,
   sourcemap: true,
-  external: ['bcryptjs'], // Keep externalizing bcryptjs for now
+  // Keep large/native/externals out of the bundle; resolve at runtime from node_modules
+  external: ['bcryptjs', 'ws', 'socket.io'],
   // Explicitly tell tsup to use your tsconfig.json for compilation settings and path aliases
   tsconfig: './tsconfig.json',
 });

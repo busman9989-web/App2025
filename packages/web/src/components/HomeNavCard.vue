@@ -24,21 +24,31 @@ defineProps({
 
 <style scoped>
 .nav-card {
-  /* Updated for Dark Mode */
-  @apply flex items-center p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200/80 dark:border-slate-700 no-underline transition-colors transform hover:-translate-y-1;
+  /* Base styles: layout, padding, shadow, border, and transition */
+  @apply flex items-center p-4 rounded-xl shadow-lg border no-underline transition-colors;
+  
+  /* Light Mode Base & Hover */
+  @apply bg-white border-slate-200/80 hover:bg-slate-100;
+
+  /* Dark Mode Base & Hover (Matching HomeView) */
+  @apply dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700;
+
+  /* Transform/Lift Effect for user feedback */
+  @apply transform hover:-translate-y-1;
 }
+
 .icon-wrapper {
-  /* Icon color is typically passed via the 'icon' prop's class */
+  /* Icon size and spacing */
   @apply flex-shrink-0 h-12 w-12 rounded-lg flex items-center justify-center mr-4 transition-colors;
-  /* If you want the icon wrapper background to change based on the card's base color */
-  /* you might need to pass an additional prop for a specific dark mode background here */
 }
+
 .nav-card-title {
-  /* Updated for Dark Mode */
+  /* Text color for title in both modes */
   @apply font-bold text-slate-800 dark:text-white transition-colors;
 }
+
 .nav-card-description {
-  /* Updated for Dark Mode */
+  /* Text color for description in both modes */
   @apply text-sm text-slate-600 dark:text-slate-400 transition-colors;
 }
 </style>

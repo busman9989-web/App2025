@@ -1,5 +1,3 @@
-
-
 services:
   web:
     build:
@@ -10,6 +8,8 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:3000
+    volumes:
+      - ./packages/web:/app
     networks:
       - carerconnect_net
     depends_on:
@@ -25,6 +25,8 @@ services:
       - "3000:3000"
     env_file:
       - ./packages/api/.env
+    volumes:
+      - ./packages/api/public/avatars:/usr/src/app/public/avatars
     networks:
       - carerconnect_net
     depends_on:
@@ -38,15 +40,12 @@ services:
     ports:
       - "5432:5432"
     environment:
-      # Securely loads credentials from your .env file
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      # This line persists the database data
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      # Ensures the API waits until the DB is ready
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s

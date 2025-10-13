@@ -39,6 +39,7 @@
             v-model="password" 
             placeholder="Password" 
             required 
+            minlength="8"
             class="form-input bg-white dark:bg-slate-700 text-slate-800 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-teal-500 focus:border-teal-500 transition-colors" 
           />
         </div>
@@ -61,7 +62,7 @@
 import { ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import api from '@/api';
-import { useThemeStore } from '@/stores/theme'; // Import the theme store
+import { useThemeStore } from '@/stores/theme';
 
 const displayName = ref('');
 const email = ref('');
@@ -70,11 +71,26 @@ const error = ref('');
 const success = ref('');
 const isLoading = ref(false);
 const router = useRouter();
-const themeStore = useThemeStore(); // Initialize the theme store
+const themeStore = useThemeStore();
+
+// Password must be at least 8 characters, contain one uppercase letter, and one symbol
+function isPasswordStrong(pw: string): boolean {
+  return (
+    pw.length >= 8 &&
+    /[A-Z]/.test(pw) &&      // has uppercase
+    /[^A-Za-z0-9]/.test(pw) // has symbol
+  );
+}
 
 const handleRegister = async () => {
   error.value = '';
   success.value = '';
+
+  if (!isPasswordStrong(password.value)) {
+    error.value = 'Password must be at least 8 characters, contain a capital letter and a symbol.';
+    return;
+  }
+
   isLoading.value = true;
   try {
     await api.post('/api/auth/register', {
@@ -100,24 +116,22 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-/* A wrapper div to apply the overall page background for dark mode */
 .auth-wrapper {
   @apply min-h-screen flex items-center justify-center p-6 transition-colors;
 }
 
 .light-mode-bg {
-  @apply bg-slate-100; /* Light mode background for the whole page */
+  @apply bg-slate-100;
 }
 
 .dark-mode-bg {
-  @apply bg-[#0f172a]; /* Dark mode background for the whole page, matching your Planner */
+  @apply bg-[#0f172a];
 }
 
 .auth-container { 
   @apply max-w-md mx-auto p-8 shadow-md; 
 }
 .form-input { 
-  /* Removed static bg-white and text-slate-800 from here, handled by direct classes */
   @apply w-full px-4 py-2 rounded-lg focus:ring-teal-500 focus:border-teal-500; 
 }
 .button-primary { 
@@ -125,7 +139,7 @@ const handleRegister = async () => {
 }
 .auth-link { @apply text-center mt-4; }
 .auth-link a { 
-  @apply text-sm hover:underline; /* Already had base text-teal-600, added dark:text-teal-400 */
+  @apply text-sm hover:underline;
 }
 .error { @apply text-red-500 text-sm text-center mt-2; }
 .success { @apply text-green-600 text-sm text-center mt-2; }

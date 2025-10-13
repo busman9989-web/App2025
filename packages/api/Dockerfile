@@ -1,15 +1,31 @@
+# packages/api/Dockerfile
+
 # ---- Builder Stage ----
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /usr/src/app
 
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    openssl \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files
 COPY ./package*.json ./
 COPY ./tsconfig.json ./
 COPY ./tsup.config.ts ./ 
 
-# Install ALL dependencies for the build
-RUN npm install
+# Clean install to fix the npm optional dependencies bug
+RUN rm -rf node_modules package-lock.json
+RUN npm install --force
 
+# Force install the missing Rollup binary
+RUN npm install --force @rollup/rollup-linux-x64-gnu
+
+# Copy source files
 COPY ./src ./src
 COPY ./prisma/schema.prisma ./prisma/schema.prisma
 
@@ -21,14 +37,16 @@ RUN npm run build
 
 
 # ---- Production Stage ----
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /usr/src/app
 
-# Install the OpenSSL compatibility package that Prisma needs
-RUN apk add --no-cache openssl3
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy ONLY production dependencies
+# Copy dependency files and install production dependencies
 COPY --from=builder /usr/src/app/package*.json ./
 RUN npm install --omit=dev
 
@@ -37,15 +55,23 @@ COPY --from=builder /usr/src/app/dist ./dist
 
 # Copy the generated Prisma client files
 COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /usr/src/app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy the Prisma schema file itself
+# Copy the Prisma schema file
 COPY --from=builder /usr/src/app/prisma/schema.prisma ./prisma/schema.prisma
 
-# ✅ Copy the startup script into the container
-COPY ./entrypoint.sh .
+# Create public/avatars directory for uploads
+RUN mkdir -p /usr/src/app/public/avatars
 
-# ✅ Make the startup script executable
+# Copy and make executable the startup script
+COPY ./entrypoint.sh .
 RUN chmod +x ./entrypoint.sh
+
+# Expose port
+EXPOSE 3000
+
+# Start the application
+CMD ["./entrypoint.sh"]
 
 EXPOSE 3000
 

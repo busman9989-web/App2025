@@ -60,9 +60,23 @@
     <button
       @click="saveEntry"
       :disabled="!newEntry.entry_text || isSubmitting"
-      class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 dark:focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      class="group relative inline-flex items-center justify-center gap-2 rounded-xl
+             border border-slate-300/70 dark:border-slate-600/70 bg-transparent
+             px-4 py-2 text-slate-700 dark:text-slate-100 hover:border-cyan-400
+             hover:text-cyan-700 dark:hover:text-cyan-300 focus:outline-none
+             focus-visible:ring-2 focus-visible:ring-cyan-400 transition
+             disabled:opacity-50 disabled:cursor-not-allowed w-full"
     >
-      {{ isSubmitting ? 'Saving...' : 'Save Entry' }}
+      <svg
+        class="h-5 w-5 transition-transform group-hover:-translate-y-0.5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m7-7H5" />
+      </svg>
+      <span class="font-medium">{{ isSubmitting ? 'Saving...' : 'Save Entry' }}</span>
     </button>
   </div>
 </template>

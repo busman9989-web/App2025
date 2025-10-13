@@ -58,7 +58,7 @@
         </h2>
         <div v-if="post.comments && post.comments.length > 0">
           <CommentCard
-            v-for="comment in post.comments"
+            v-for="comment in mappedComments"
             :key="comment.id"
             :comment="comment"
             :post-id="post.id"
@@ -74,11 +74,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
-import CommentCard from '@/components/CommentCard.vue'; // Assuming CommentCard also handles its own dark mode
-import CommentForm from '@/components/CommentForm.vue'; // Assuming CommentForm also handles its own dark mode
+import CommentCard from '@/components/CommentCard.vue';
+import CommentForm from '@/components/CommentForm.vue';
 
 interface Comment {
   id: string;
@@ -86,8 +86,8 @@ interface Comment {
   createdAt: string;
   parentId: string | null;
   authorName: string;
-  voteCount?: number;
-  userVote?: number;
+  voteCount: number;
+  userVote: number;
   replies?: Comment[];
 }
 
@@ -112,22 +112,34 @@ const post = ref<Post | null>(null);
 const isLoading = ref(true);
 const error = ref(false);
 
+// Helper to recursively map comments and ensure required fields are present
+function mapComment(raw: any): Comment {
+  return {
+    id: raw.id,
+    content: raw.content,
+    createdAt: raw.createdAt ?? raw.created_at ?? "",
+    parentId: raw.parentId ?? null,
+    authorName: raw.authorName ?? "Anonymous",
+    voteCount: raw.voteCount ?? 0,
+    userVote: raw.userVote ?? 0,
+    replies: (raw.replies || []).map((r: any) => mapComment(r)),
+  };
+}
+
+const mappedComments = computed(() =>
+  post.value?.comments?.map(c => mapComment(c)) ?? []
+);
+
 const fetchPost = async () => {
   isLoading.value = true;
   error.value = false;
   try {
-    console.log('[PostDetail] Fetching post:', postId);
     const response = await api.get(`/api/posts/${postId}`);
-    console.log('[PostDetail] Response:', response.data);
-    
     post.value = response.data;
-    
     if (!post.value?.id) {
-      console.error('[PostDetail] No post ID in response');
       error.value = true;
     }
   } catch (err) {
-    console.error('[PostDetail] Error fetching post:', err);
     error.value = true;
   } finally {
     isLoading.value = false;
@@ -166,8 +178,6 @@ const formatTimestamp = (timestamp: string | undefined) => {
 };
 
 const categoryClass = (category: string) => {
-  // Category classes are generally designed to stand out.
-  // Adding dark: variants for the default background/text for consistency.
   switch (category) {
     case 'Health & Wellness': return 'bg-blue-100 text-blue-800';
     case 'Mental Health': return 'bg-purple-100 text-purple-800';
@@ -181,10 +191,3 @@ const categoryClass = (category: string) => {
 
 onMounted(fetchPost);
 </script>
-
-<style scoped>
-.vote-button {
-  /* This will also need dark mode adjustments if it's not handled in CommentCard */
-  @apply p-1 rounded-full text-slate-400 dark:text-slate-500 hover:text-teal-500 dark:hover:text-indigo-400;
-}
-</style>

@@ -6,7 +6,7 @@
 
     <div class="space-y-4">
       <CommentCard 
-        v-for="comment in comments" 
+        v-for="comment in mappedComments" 
         :key="comment.id" 
         :comment="comment" 
         :postId="postId" 
@@ -22,29 +22,54 @@
 </template>
 
 <script setup lang="ts">
-import { PropType } from 'vue';
+import { PropType, computed } from 'vue';
 import CommentCard from './CommentCard.vue';
 
+// The base Comment type as received (can have null/undefined)
 interface Comment {
   id: string;
   content: string;
   authorName?: string | null;
   createdAt?: string | null;
   replies?: Comment[];
-  voteCount?: number; // Added for CommentCard props
-  userVote?: 'like' | 'dislike' | null; // Added for CommentCard props
+  voteCount?: number;
+  userVote?: number;
 }
+
+// What CommentCard expects (all required, createdAt is string)
+type StrictComment = {
+  id: string;
+  content: string;
+  authorName: string;
+  createdAt: string;
+  replies?: StrictComment[];
+  voteCount: number;
+  userVote: number;
+};
 
 const props = defineProps({
   comments: {
     type: Array as PropType<Comment[]>,
     required: true,
   },
-  postId: { // Added postId prop
+  postId: {
     type: String,
     required: true,
   }
 });
 
-const emit = defineEmits(['comment-posted']); // Added emit for comment-posted event
+// Helper: Map comments to ensure required fields for CommentCard
+function mapComment(raw: Comment): StrictComment {
+  return {
+    id: raw.id,
+    content: raw.content,
+    authorName: raw.authorName ?? "Anonymous",
+    createdAt: raw.createdAt ?? "",
+    replies: (raw.replies ?? []).map(r => mapComment(r as Comment)),
+    voteCount: raw.voteCount ?? 0,
+    userVote: raw.userVote ?? 0,
+  };
+}
+
+const mappedComments = computed(() => props.comments.map(mapComment));
 </script>

@@ -1,10 +1,24 @@
 <template>
-  <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200/80 dark:border-slate-700 p-5 transition-colors">
+  <div
+    class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200/80 dark:border-slate-700 p-5 transition-colors"
+  >
     <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-4 transition-colors">
       {{ props.parentId ? 'Reply' : 'Leave a Comment' }}
     </h3>
 
     <div v-if="authStore.user">
+      <!-- Title input only for top-level comments (new threads) -->
+      <div v-if="!props.parentId" class="mb-4">
+        <input
+          v-model="commentTitle"
+          placeholder="Title"
+          maxlength="100"
+          class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg mb-2
+                 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
+          @input="error = ''"
+        />
+      </div>
+
       <textarea
         v-model="commentContent"
         placeholder="Write your comment here..."
@@ -20,13 +34,26 @@
       <div class="mt-4 flex justify-end">
         <button
           @click="submitComment"
-          :disabled="!commentContent.trim() || isSubmitting"
-          class="px-6 py-2 bg-teal-500 text-white font-semibold rounded-lg
-                 hover:bg-teal-600 focus:outline-none focus:ring-2
-                 focus:ring-teal-500 focus:ring-offset-2 transition-colors
+          :disabled="!commentContent.trim() || (!props.parentId && !commentTitle.trim()) || isSubmitting"
+          class="group relative inline-flex items-center justify-center gap-2 rounded-xl
+                 border border-slate-300/70 dark:border-slate-600/70 bg-transparent
+                 px-4 py-2 text-slate-700 dark:text-slate-100 hover:border-cyan-400
+                 hover:text-cyan-700 dark:hover:text-cyan-300 focus:outline-none
+                 focus-visible:ring-2 focus-visible:ring-cyan-400 transition
                  disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {{ isSubmitting ? 'Posting...' : props.parentId ? 'Reply' : 'Post Comment' }}
+          <svg
+            class="h-5 w-5 transition-transform group-hover:-translate-y-0.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m7-7H5" />
+          </svg>
+          <span class="font-medium">
+            {{ isSubmitting ? 'Posting...' : props.parentId ? 'Reply' : 'Post Comment' }}
+          </span>
         </button>
       </div>
 
@@ -71,6 +98,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const commentContent = ref('');
+const commentTitle = ref('');
 const isSubmitting = ref(false);
 const error = ref('');
 
@@ -79,19 +107,28 @@ const submitComment = async () => {
     error.value = 'Comment cannot be empty.';
     return;
   }
+  if (!props.parentId && !commentTitle.value.trim()) {
+    error.value = 'Title is required for new threads.';
+    return;
+  }
 
   error.value = '';
   isSubmitting.value = true;
 
   try {
-    const body: { content: string; parentId?: string } = {
+    const body: { content: string; parentId?: string; title?: string } = {
       content: commentContent.value.trim(),
     };
-    if (props.parentId) body.parentId = props.parentId;
+    if (props.parentId) {
+      body.parentId = props.parentId;
+    } else {
+      body.title = commentTitle.value.trim();
+    }
 
     const { data } = await api.post(`/api/posts/${props.postId}/comments`, body);
 
     commentContent.value = '';
+    if (!props.parentId) commentTitle.value = '';
     error.value = '';
 
     emit('comment-posted', data);
@@ -114,7 +151,6 @@ const submitComment = async () => {
 </script>
 
 <style scoped>
-/* Keep the textarea focus outline override here if desired */
 textarea:focus {
   outline: none;
 }
