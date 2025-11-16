@@ -2,89 +2,86 @@
   <div 
     :id="'comment-' + comment.id"
     class="pl-4 py-3 border-l-2 transition-colors"
-    :style="{ borderColor: `hsl(${(depth * 40) % 360}, ${darkThemeActive ? '20%' : '30%'}, ${darkThemeActive ? '40%' : '80%'})` }"
+    :style="{ borderColor: `hsl(${((depth ?? 0) * 40) % 360}, ${darkThemeActive ? '20%' : '30%'}, ${darkThemeActive ? '40%' : '80%'})` }"
   >
     <div class="flex items-start space-x-3">
-      <!-- Avatar (link to user profile, only if not anonymous) -->
-      <template v-if="comment.userId">
-        <router-link
-          :to="`/profile/${comment.userId}`"
-          class="w-8 h-8 flex-shrink-0"
-          @click.native.stop
+      <!-- Avatar with Profile Picture Support -->
+      <div
+        class="w-8 h-8 flex-shrink-0 rounded-full overflow-hidden"
+        :class="comment.profilePictureUrl && !imageError ? 'bg-slate-200 dark:bg-slate-700' : avatarGradientClass"
+      >
+        <img 
+          v-if="comment.profilePictureUrl && !imageError" 
+          :src="comment.profilePictureUrl" 
+          alt="avatar" 
+          class="w-8 h-8 rounded-full object-cover"
+          @error="handleImageError"
+        />
+        <div 
+          v-else
+          class="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm"
         >
-          <template v-if="comment.profilePictureUrl">
-            <img :src="comment.profilePictureUrl" alt="avatar" class="w-8 h-8 rounded-full object-cover" />
-          </template>
-          <template v-else>
-            <div class="w-8 h-8 bg-slate-300 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 font-semibold text-sm">
-              {{ comment.authorName ? comment.authorName.charAt(0).toUpperCase() : '?' }}
-            </div>
-          </template>
-        </router-link>
-      </template>
-      <template v-else>
-        <div class="w-8 h-8 bg-slate-300 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 font-semibold text-sm">
-          {{ comment.authorName ? comment.authorName.charAt(0).toUpperCase() : '?' }}
+          {{ avatarLetter }}
         </div>
-      </template>
+      </div>
 
       <div class="flex-grow">
         <div class="flex items-center space-x-2 mb-1">
-          <template v-if="comment.userId">
-            <router-link :to="`/profile/${comment.userId}`" class="font-semibold text-slate-800 dark:text-white text-sm transition-colors hover:underline" @click.native.stop>
-              {{ comment.authorName || 'Anonymous' }}
-            </router-link>
-          </template>
-          <template v-else>
-            <span class="font-semibold text-slate-800 dark:text-white text-sm">{{ comment.authorName || 'Anonymous' }}</span>
-          </template>
-          <span class="text-xs text-slate-500 dark:text-slate-400 transition-colors">{{ formatTimestamp(comment.createdAt) }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white text-sm transition-colors">
+            {{ comment.authorName || 'Anonymous' }}
+          </span>
+          <span class="text-xs text-slate-500 dark:text-slate-400 transition-colors">
+            {{ formatTimestamp(comment.createdAt) }}
+          </span>
         </div>
 
-        <p class="text-slate-700 dark:text-slate-200 text-sm mb-2 transition-colors">{{ comment.content }}</p>
+        <p class="text-slate-700 dark:text-slate-200 text-sm mb-2 transition-colors leading-relaxed">
+          {{ comment.content }}
+        </p>
 
-        <div class="flex items-center space-x-4 text-xs text-slate-500 dark:text-slate-400 transition-colors">
+        <div class="flex items-center space-x-4 text-xs">
           <button
             @click.stop="handleVote('like')"
             :disabled="isVoting"
             :class="[
-              'flex items-center space-x-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors',
-              localUserVoteString === 'like' ? 'text-blue-600 dark:text-blue-400' : ''
+              'flex items-center space-x-1 transition-colors min-h-[44px] -my-2 py-2',
+              localUserVoteString === 'like' 
+                ? 'text-blue-600 dark:text-blue-400' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
             ]"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905
-                    0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
             </svg>
-            <span>{{ localVoteCount }}</span>
+            <span class="font-medium">{{ localVoteCount }}</span>
           </button>
 
           <button
             @click.stop="handleVote('dislike')"
             :disabled="isVoting"
             :class="[
-              'flex items-center space-x-1 hover:text-red-600 dark:hover:text-red-400 transition-colors',
-              localUserVoteString === 'dislike' ? 'text-red-600 dark:text-red-400' : ''
+              'flex items-center space-x-1 transition-colors min-h-[44px] -my-2 py-2',
+              localUserVoteString === 'dislike' 
+                ? 'text-red-600 dark:text-red-400' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400'
             ]"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
-                d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.738 3h4.017c.163 0 .326.02.485.06L17 4m-7 10v-5
-                    a2 2 0 00-2-2h-.095c-.5 0-.905-.405-.905.905
-                    0-.714.211-1.412.608-2.006L17 9V3m-7 10h2m-2 0H5a2 2 0 00-2 2v6a2 2 0 002 2h2.5" />
+                d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.738 3h4.017c.163 0 .326.02.485.06L17 4m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714-.211-1.412-.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
             </svg>
           </button>
 
           <button 
             @click.stop="toggleReplyForm" 
-            class="flex items-center space-x-1 hover:text-teal-600 dark:hover:text-indigo-400 transition-colors"
+            class="flex items-center space-x-1 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors min-h-[44px] -my-2 py-2"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
             </svg>
-            <span>Reply</span>
+            <span class="font-medium">Reply</span>
           </button>
         </div>
 
@@ -104,15 +101,15 @@
             :key="reply.id"
             :comment="reply"
             :postId="postId"
-            :depth="depth + 1"
+            :depth="(depth ?? 0) + 1"
             @comment-posted="handleCommentPosted"
           />
           <button
             v-if="(comment.replies?.length || 0) > replyLimit"
             @click.stop="showMoreReplies"
-            class="text-xs font-bold text-teal-700 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+            class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors min-h-[44px] py-2"
           >
-            View more replies
+            View more replies ({{ comment.replies.length - replyLimit }} more)
           </button>
         </div>
       </div>
@@ -133,9 +130,10 @@ interface Comment {
   createdAt: string;
   authorName: string;
   userId?: string | null;
-  profilePictureUrl?: string;
+  authorId?: string | null;
+  profilePictureUrl?: string | null;
   voteCount: number;
-  userVote: number; // 1 | -1 | 0
+  userVote: number;
   replies?: Comment[];
 }
 
@@ -154,10 +152,30 @@ const darkThemeActive = computed(() => themeStore.theme === 'dark');
 
 const showReplyForm = ref(false);
 const replyLimit = ref(3);
+const imageError = ref(false);
 
 const localVoteCount = ref(0);
 const localUserVote = ref<number>(0);
 const isVoting = ref(false);
+
+const avatarLetter = computed(() => {
+  const name = props.comment.authorName || 'Anonymous';
+  return name.charAt(0).toUpperCase();
+});
+
+const avatarGradientClass = computed(() => {
+  const gradients = [
+    'bg-gradient-to-br from-cyan-500 to-blue-600',
+    'bg-gradient-to-br from-purple-500 to-pink-600',
+    'bg-gradient-to-br from-green-500 to-teal-600',
+    'bg-gradient-to-br from-orange-500 to-red-600',
+    'bg-gradient-to-br from-indigo-500 to-purple-600',
+  ];
+  
+  const userId = props.comment.userId || props.comment.authorId || '';
+  const index = (userId.charCodeAt(0) || 0) % gradients.length;
+  return gradients[index];
+});
 
 const localUserVoteString = computed<'like' | 'dislike' | null>(() => {
   if (localUserVote.value === 1) return 'like';
@@ -168,12 +186,25 @@ const localUserVoteString = computed<'like' | 'dislike' | null>(() => {
 onMounted(() => {
   localVoteCount.value = props.comment.voteCount;
   localUserVote.value = props.comment.userVote;
+  
+  console.log('Comment data:', {
+    id: props.comment.id,
+    authorName: props.comment.authorName,
+    userId: props.comment.userId,
+    profilePictureUrl: props.comment.profilePictureUrl,
+    hasProfilePic: !!props.comment.profilePictureUrl
+  });
 });
 
 const displayedReplies = computed(() => (props.comment.replies || []).slice(0, replyLimit.value));
 
 const showMoreReplies = () => {
   replyLimit.value += 3;
+};
+
+const handleImageError = () => {
+  imageError.value = true;
+  console.error('Failed to load comment profile picture:', props.comment.profilePictureUrl);
 };
 
 const handleVote = async (voteType: 'like' | 'dislike') => {
@@ -190,7 +221,6 @@ const handleVote = async (voteType: 'like' | 'dislike') => {
   const numeric = voteType === 'like' ? 1 : -1;
   const sendType = localUserVote.value === numeric ? 0 : numeric;
 
-  // optimistic:
   localVoteCount.value += (sendType - localUserVote.value);
   localUserVote.value = sendType;
 
@@ -198,9 +228,9 @@ const handleVote = async (voteType: 'like' | 'dislike') => {
     await api.post(`/api/comments/${props.comment.id}/vote`, { voteType: sendType });
   } catch (err) {
     console.error('Failed to vote:', err);
-    // revert
     localUserVote.value = originalVote;
     localVoteCount.value = originalCount;
+    alert('Failed to record vote. Please try again.');
   } finally {
     isVoting.value = false;
   }

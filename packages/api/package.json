@@ -27,7 +27,7 @@
     "dotenv": "^16.3.1",
     "fastify": "^5.6.1",
     "ioredis": "^5.4.1",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.2",
     "pg": "^8.12.0",
     "sharp": "^0.34.4",
     "socket.io": "^4.7.5",
@@ -41,7 +41,9 @@
     "prisma": "^5.16.1",
     "tsup": "^8.1.0",
     "tsx": "^4.15.6",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "patch-package": "^6.5.0"
+
   },
   "prisma": {
     "seed": "npm run seed:dist"

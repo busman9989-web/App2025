@@ -1,5 +1,3 @@
-# packages/api/Dockerfile
-
 # ---- Builder Stage ----
 FROM node:20-slim AS builder
 
@@ -16,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 # Copy dependency files
 COPY ./package*.json ./
 COPY ./tsconfig.json ./
-COPY ./tsup.config.ts ./ 
+COPY ./tsup.config.ts ./
 
 # Clean install to fix the npm optional dependencies bug
 RUN rm -rf node_modules package-lock.json
@@ -34,7 +32,6 @@ RUN npx prisma generate --schema prisma/schema.prisma
 
 # Build the application
 RUN npm run build
-
 
 # ---- Production Stage ----
 FROM node:20-slim AS runner
@@ -63,6 +60,10 @@ COPY --from=builder /usr/src/app/prisma/schema.prisma ./prisma/schema.prisma
 # Create public/avatars directory for uploads
 RUN mkdir -p /usr/src/app/public/avatars
 
+# Copy SSL certificates for HTTPS
+COPY ./certs ./certs
+RUN chmod 600 ./certs/*
+
 # Copy and make executable the startup script
 COPY ./entrypoint.sh .
 RUN chmod +x ./entrypoint.sh
@@ -70,10 +71,7 @@ RUN chmod +x ./entrypoint.sh
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["./entrypoint.sh"]
-
-EXPOSE 3000
-
-# ✅ Set the entrypoint to run the script, which handles migrations and starts the server
+# Set the entrypoint to run the script, which handles migrations and starts the server
 ENTRYPOINT ["./entrypoint.sh"]
+
+# If you want to pass env vars at runtime for cert/key file names or NODE_ENV, Fastify will pick them up.

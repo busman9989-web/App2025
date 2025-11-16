@@ -45,11 +45,33 @@ interface ChatState {
   allUsers: UserSummary[];
 }
 
-// Helper: make avatar URLs absolute to the API origin when needed
-const apiOrigin = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+/**
+ * ✅ Determine API origin dynamically
+ * - Uses env variable if provided
+ * - Detects Android emulator (10.0.2.2)
+ * - Falls back to api.carerscircle.co.uk
+ */
+function getApiOrigin(): string {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) return envUrl;
+
+  // Android emulator detection (Capacitor or WebView)
+  if (window.location.hostname === 'carerscircle.co.uk' || window.location.hostname === '') {
+    return 'https://api.carerscircle.co.uk';
+  }
+
+  // Otherwise, same host as app (useful for web)
+  return `${window.location.protocol}//${window.location.hostname}:3000`;
+}
+
+const apiOrigin = getApiOrigin();
+
+/**
+ * Normalize avatar URLs to absolute paths based on the API origin
+ */
 function normalizeAvatar(url?: string | null): string | null {
   if (!url) return null;
-  if (/^https?:\/\//i.test(url)) return url; // already absolute
+  if (/^https?:\/\//i.test(url)) return url;
   if (url.startsWith('/')) return `${apiOrigin}${url}`;
   return `${apiOrigin}/${url}`;
 }
@@ -67,7 +89,8 @@ export const useChatStore = defineStore('chat', {
   }),
 
   getters: {
-    activeThread: (state) => state.threads.find((t) => t.id === state.activeThreadId) || null,
+    activeThread: (state) =>
+      state.threads.find((t) => t.id === state.activeThreadId) || null,
   },
 
   actions: {
@@ -78,11 +101,8 @@ export const useChatStore = defineStore('chat', {
     async fetchThreads() {
       console.log('[CHAT STORE] Fetching threads...');
       this.isLoading = true;
-
       try {
         const { data } = await api.get('/api/chat/threads');
-        console.log('[CHAT STORE] Threads fetched:', data);
-
         const meId = this.authStore.user?.id;
 
         this.threads = data.map((thread: any) => {
@@ -94,8 +114,11 @@ export const useChatStore = defineStore('chat', {
           return {
             id: thread.id,
             recipientId: other?.id || '',
-            recipientName: other?.displayName || other?.email || 'Unknown User',
-            recipientAvatar: normalizeAvatar(other?.avatarUrl ?? other?.profilePictureUrl ?? null),
+            recipientName:
+              other?.displayName || other?.email || 'Unknown User',
+            recipientAvatar: normalizeAvatar(
+              other?.avatarUrl ?? other?.profilePictureUrl ?? null
+            ),
             recipientStatus: null,
             lastMessageAt: thread.lastMessage?.timestamp
               ? new Date(thread.lastMessage.timestamp).toISOString()
@@ -105,11 +128,14 @@ export const useChatStore = defineStore('chat', {
           };
         });
 
-        this.unreadCount = this.threads.reduce((sum, t) => sum + t.unreadCount, 0);
-        console.log('[CHAT STORE] Processed threads:', this.threads.length);
+        this.unreadCount = this.threads.reduce(
+          (sum, t) => sum + t.unreadCount,
+          0
+        );
+
+        console.log('[CHAT STORE] Threads loaded:', this.threads.length);
       } catch (error) {
         console.error('[CHAT STORE] Failed to fetch threads:', error);
-        throw error;
       } finally {
         this.isLoading = false;
       }
@@ -118,10 +144,8 @@ export const useChatStore = defineStore('chat', {
     async fetchMessages(threadId: string) {
       console.log('[CHAT STORE] Fetching messages for thread:', threadId);
       this.isLoadingMessages = true;
-
       try {
         const { data } = await api.get(`/api/chat/messages/${threadId}`);
-        console.log('[CHAT STORE] Messages fetched:', data);
 
         this.activeMessages = data.map((msg: any) => ({
           id: msg.id,
@@ -133,15 +157,17 @@ export const useChatStore = defineStore('chat', {
             : new Date().toISOString(),
           sender: {
             id: msg.user?.id || '',
-            displayName: msg.user?.displayName || msg.user?.email || 'Unknown User',
-            profilePictureUrl: normalizeAvatar(msg.user?.avatarUrl ?? msg.user?.profilePictureUrl ?? null),
+            displayName:
+              msg.user?.displayName || msg.user?.email || 'Unknown User',
+            profilePictureUrl: normalizeAvatar(
+              msg.user?.avatarUrl ?? msg.user?.profilePictureUrl ?? null
+            ),
           },
         }));
 
-        console.log('[CHAT STORE] Processed messages:', this.activeMessages.length);
+        console.log('[CHAT STORE] Messages loaded:', this.activeMessages.length);
       } catch (error) {
         console.error('[CHAT STORE] Failed to fetch messages:', error);
-        throw error;
       } finally {
         this.isLoadingMessages = false;
       }
@@ -159,16 +185,14 @@ export const useChatStore = defineStore('chat', {
         throw new Error('No active thread or empty message');
       }
       console.log('[CHAT STORE] Sending message:', content);
-
       try {
-        // POST only; do NOT push to activeMessages here.
-        const { data } = await api.post(`/api/chat/messages/${this.activeThreadId}`, {
-          text: content.trim(),
-        });
-        console.log('[CHAT STORE] Message sent:', data);
+        const { data } = await api.post(
+          `/api/chat/messages/${this.activeThreadId}`,
+          { text: content.trim() }
+        );
 
-        // Update thread preview/time; the message itself will arrive via socket
-        const thread = this.threads.find(t => t.id === this.activeThreadId);
+        // Update thread metadata
+        const thread = this.threads.find((t) => t.id === this.activeThreadId);
         if (thread) {
           thread.lastMessagePreview = content.trim();
           thread.lastMessageAt = data.timestamp
@@ -185,10 +209,8 @@ export const useChatStore = defineStore('chat', {
 
     async createThread(recipientId: string): Promise<string> {
       console.log('[CHAT STORE] Creating thread with user:', recipientId);
-
       try {
         const { data } = await api.post('/api/chat/threads', { recipientId });
-        console.log('[CHAT STORE] Thread created/found:', data);
         await this.fetchThreads();
         return data.id as string;
       } catch (error) {
@@ -200,17 +222,17 @@ export const useChatStore = defineStore('chat', {
     async loadAllUsers() {
       if (this.allUsers.length > 0) return;
       try {
-        console.log('[CHAT STORE] Fetching all users...');
         const { data } = await api.get('/api/users');
         this.allUsers = Array.isArray(data)
           ? data.map((user: any) => ({
               id: user.id,
               displayName: user.displayName || user.email,
               email: user.email,
-              profilePictureUrl: normalizeAvatar(user.profilePictureUrl || null),
+              profilePictureUrl: normalizeAvatar(
+                user.profilePictureUrl || null
+              ),
             }))
           : [];
-        console.log('[CHAT STORE] Cached users:', this.allUsers.length);
       } catch (err) {
         console.error('[CHAT STORE] Failed to load all users', err);
       }
@@ -218,23 +240,24 @@ export const useChatStore = defineStore('chat', {
 
     async searchUsers(query: string): Promise<UserSummary[]> {
       if (!query || query.length < 2) return [];
-      console.log('[CHAT STORE] Searching users:', query);
       const q = query.toLowerCase();
       if (this.allUsers.length === 0) await this.loadAllUsers();
 
-      const results = this.allUsers.filter((u) => {
-        const matchesName = u.displayName?.toLowerCase().includes(q);
-        const matchesEmail = u.email?.toLowerCase().includes(q);
+      return this.allUsers.filter((u) => {
+        const matches =
+          u.displayName?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q);
         const isNotSelf = u.id !== this.authStore.user?.id;
-        return (matchesName || matchesEmail) && isNotSelf;
+        return matches && isNotSelf;
       });
-
-      console.log('[CHAT STORE] Found users:', results.length);
-      return results;
     },
 
-    // IMPORTANT: If you are using Socket.IO via useChatSocket(), avoid also using this raw WebSocket.
-    // Leave it unused or remove it to prevent double-delivery of the same events.
+    /**
+     * ✅ Robust WebSocket connection
+     * - Automatically switches between ws:// and wss://
+     * - Uses 10.0.2.2 when in Android emulator
+     * - Reconnects on disconnect
+     */
     connectWebSocket() {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         console.log('[CHAT STORE] WebSocket already connected');
@@ -243,31 +266,28 @@ export const useChatStore = defineStore('chat', {
 
       try {
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
-        const wsHost = apiUrl ? apiUrl.replace(/^https?:\/\//, '') : 'localhost:3000';
-        const wsUrl = `${wsProtocol}//${wsHost}/ws/chat`;
+        const apiUrl = apiOrigin.replace(/^https?:\/\//, '');
+        const wsUrl = `${wsProtocol}//${apiUrl}/ws/chat`;
 
         console.log('[CHAT STORE] Connecting to WebSocket:', wsUrl);
 
         this.ws = new WebSocket(wsUrl);
 
-        this.ws.onopen = () => console.log('[CHAT STORE] ✅ WebSocket connected');
-        this.ws.onerror = (error) => console.error('[CHAT STORE] ❌ WebSocket error:', error);
+        this.ws.onopen = () =>
+          console.log('[CHAT STORE] ✅ WebSocket connected:', wsUrl);
+
+        this.ws.onerror = (error) =>
+          console.error('[CHAT STORE] ❌ WebSocket error:', error);
 
         this.ws.onclose = () => {
-          console.log('[CHAT STORE] 🔌 WebSocket disconnected');
+          console.warn('[CHAT STORE] 🔌 WebSocket disconnected, retrying...');
           this.ws = null;
-          setTimeout(() => {
-            console.log('[CHAT STORE] 🔄 Attempting to reconnect...');
-            this.connectWebSocket();
-          }, 5000);
+          setTimeout(() => this.connectWebSocket(), 5000);
         };
 
         this.ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            console.log('[CHAT STORE] 📨 WebSocket message:', data);
-
             if (data.type === 'message') {
               const m = data.message;
               const normalized: ChatMessage = {
@@ -275,29 +295,37 @@ export const useChatStore = defineStore('chat', {
                 threadId: m.threadId,
                 senderId: m.user.id,
                 content: m.text,
-                createdAt: m.timestamp
-                  ? new Date(m.timestamp).toISOString()
-                  : new Date().toISOString(),
+                createdAt: new Date(m.timestamp).toISOString(),
                 sender: {
                   id: m.user.id,
-                  displayName: m.user.displayName || m.user.email || 'Unknown User',
-                  profilePictureUrl: normalizeAvatar(m.user.avatarUrl ?? m.user.profilePictureUrl ?? null),
+                  displayName:
+                    m.user.displayName || m.user.email || 'Unknown User',
+                  profilePictureUrl: normalizeAvatar(
+                    m.user.avatarUrl ?? m.user.profilePictureUrl ?? null
+                  ),
                 },
               };
 
               if (normalized.threadId === this.activeThreadId) {
-                const exists = this.activeMessages.find((x) => x.id === normalized.id);
+                const exists = this.activeMessages.find(
+                  (x) => x.id === normalized.id
+                );
                 if (!exists) this.activeMessages.push(normalized);
               }
 
-              const thread = this.threads.find((t) => t.id === normalized.threadId);
+              const thread = this.threads.find(
+                (t) => t.id === normalized.threadId
+              );
               if (thread) {
                 thread.lastMessagePreview = normalized.content;
                 thread.lastMessageAt = normalized.createdAt;
               }
             }
           } catch (error) {
-            console.error('[CHAT STORE] Failed to parse WebSocket message:', error);
+            console.error(
+              '[CHAT STORE] Failed to parse WebSocket message:',
+              error
+            );
           }
         };
       } catch (error) {

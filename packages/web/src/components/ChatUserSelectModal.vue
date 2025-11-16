@@ -51,8 +51,8 @@
             :key="user.id"
             @click="selectUser(user)"
             style="display:flex;align-items:center;gap:12px;padding:12px;margin:4px;background:#334155;border-radius:8px;cursor:pointer;transition:background 0.2s;"
-            @mouseenter="e => e.currentTarget.style.background = '#475569'"
-            @mouseleave="e => e.currentTarget.style.background = '#334155'"
+            @mouseenter="(e: MouseEvent) => { const t = e.currentTarget as HTMLElement | null; if (t) t.style.background = '#475569'; }"
+            @mouseleave="(e: MouseEvent) => { const t = e.currentTarget as HTMLElement | null; if (t) t.style.background = '#334155'; }"
           >
             <img
               :src="user.avatarUrl || defaultAvatar"

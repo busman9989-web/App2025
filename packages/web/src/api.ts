@@ -1,29 +1,46 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
 import { useAuthStore } from '@/stores/auth';
 
-const getBaseURL = () => {
-  if (window.Capacitor) {
-    return 'http://10.0.2.2:3000';
-  } else {
-    return import.meta.env.VITE_API_URL || 'http://localhost:3000';
-  }
-};
+// ✅ Use HTTP for Android emulator to avoid Mixed Content errors
+const baseURL = Capacitor.isNativePlatform()
+  ? 'https://api.carerscircle.co.uk'
+  : (import.meta.env.VITE_API_URL || 'https://api.carerscircle.co.uk');
 
 const api = axios.create({
-  baseURL: getBaseURL(),
-  // ✅ Ensures that cookies are sent with every request
-  withCredentials: true, 
+  baseURL,
+  withCredentials: true, // if your backend uses cookies/sessions
 });
 
-// The old request interceptor for adding the Authorization header has been removed.
+// Request interceptor to attach Authorization header with JWT
+api.interceptors.request.use(
+  async (config) => {
+    let token: string | null = null;
 
-// This response interceptor is useful for handling expired sessions.
+    if (Capacitor.isNativePlatform()) {
+      const result = await Preferences.get({ key: 'auth_token' });
+      token = result.value;
+    } else {
+      token = localStorage.getItem('auth_token');
+    }
+
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor for auth/session expiry
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
       const authStore = useAuthStore();
-      // Avoids logout loops by checking if the user is supposed to be logged in.
       if (authStore.isAuthenticated) {
         authStore.logout();
       }
@@ -32,14 +49,12 @@ api.interceptors.response.use(
   }
 );
 
-// --- UPDATED FUNCTION FOR PROFILE IMAGE UPLOAD ---
 /**
  * Upload user profile avatar.
  * @param formData FormData containing an "avatar" field (image file)
  * @returns Axios response
  */
 export async function uploadAvatar(formData: FormData) {
-  // Route changed from '/api/users/me/avatar' to '/avatar' to match your Fastify backend
   return api.post('/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

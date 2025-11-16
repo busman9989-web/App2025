@@ -1,138 +1,164 @@
 <template>
-  <div
-    class="p-4 rounded-xl shadow-lg transition duration-300 ease-in-out cursor-pointer bg-white dark:bg-slate-900 hover:shadow-xl"
-    :class="cardBorderClasses"
-  >
-    <div class="flex justify-between items-start">
-      <div class="flex-grow min-w-0 flex items-center space-x-3">
-        <div class="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 font-semibold text-lg transition-colors">
+  <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:bg-slate-50 dark:hover:bg-slate-750 active:bg-slate-100 dark:active:bg-slate-700 transition-colors">
+    <!-- Post Header -->
+    <div class="flex items-start gap-3 mb-3">
+      <!-- Avatar with Profile Picture Support -->
+      <button
+        @click="handleAvatarClick"
+        class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 active:opacity-80 transition-opacity"
+        :class="!post.profilePictureUrl && avatarGradientClass"
+      >
+        <!-- Show profile picture if available -->
+        <img 
+          v-if="post.profilePictureUrl && !imageError" 
+          :src="post.profilePictureUrl" 
+          alt="Profile"
+          class="w-full h-full object-cover"
+          @error="handleImageError"
+        />
+        <!-- Fallback to initials -->
+        <div 
+          v-else
+          class="w-full h-full flex items-center justify-center text-white font-semibold"
+        >
           {{ avatarLetter }}
         </div>
-        <div class="relative inline-block min-w-0">
-          <p 
+      </button>
+
+      <!-- Author Info -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2">
+          <button
             v-if="!post.isAnonymous"
-            @click.stop="toggleCard"
-            class="font-semibold text-slate-800 dark:text-white transition-colors cursor-pointer hover:text-cyan-600 dark:hover:text-cyan-400 truncate"
-            :aria-expanded="isCardVisible"
-            aria-controls="profile-popover"
+            @click="handleAuthorClick"
+            class="font-semibold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 active:text-blue-700 dark:active:text-blue-300 transition-colors truncate"
           >
             {{ displayName }}
-          </p>
-          <p v-else class="font-semibold text-slate-800 dark:text-white transition-colors truncate">
-            {{ displayName }}
-          </p>
-          <p class="text-xs text-slate-500 dark:text-slate-400 transition-colors">{{ formattedTimestamp }}</p>
-          <div 
-            v-if="isCardVisible" 
-            id="profile-popover"
-            class="absolute z-30 mt-2 left-0 sm:right-0 sm:left-auto"
-            @click.stop
-            @mouseleave="isCardVisible = false"
-          >
-            <UserProfileCard :user="authorCardData" />
-          </div>
+          </button>
+          <span v-else class="font-semibold text-slate-500 dark:text-slate-400 truncate">{{ displayName }}</span>
+          <span class="text-slate-500 dark:text-slate-500 text-xs flex-shrink-0">{{ formattedTimestamp }}</span>
         </div>
+        <p class="text-slate-600 dark:text-slate-400 text-sm truncate">@{{ post.authorName || 'anonymous' }}</p>
       </div>
-      <span
-        :class="[
-          'ml-4 px-3 py-1 text-xs font-semibold rounded-full flex-shrink-0 transition-colors',
-          categoryBadgeClass(post.category)
-        ]"
-      >
+
+      <!-- Category Badge -->
+      <span :class="['px-2 py-1 text-xs font-semibold rounded-full border flex-shrink-0', categoryBadgeClass(post.category)]">
         {{ post.category || 'General' }}
       </span>
     </div>
 
-    <div class="mt-3 text-slate-700 dark:text-slate-200 text-sm leading-relaxed transition-colors line-clamp-2">
-      {{ post.content }}
+    <!-- Post Content -->
+    <div @click="navigateToPost" class="mb-3 active:opacity-80 transition-opacity cursor-pointer">
+      <p class="text-slate-700 dark:text-slate-200 leading-relaxed">{{ post.content }}</p>
     </div>
 
-    <div class="flex items-center space-x-4 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-      <div class="flex items-center space-x-1" @click.stop>
+    <!-- Interaction Bar -->
+    <div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700">
+      <div class="flex items-center gap-4">
+        <!-- Boost (Upvote) -->
         <button
           @click.stop="handleVote(1)"
-          :class="['vote-button', { 'text-teal-500 dark:text-indigo-400': userVoteLocal === 1 }]"
-          title="Upvote"
+          :class="[
+            'flex items-center gap-1.5 text-sm transition-colors active:scale-95 min-h-[44px] -my-2 py-2',
+            userVoteLocal === 1 
+              ? 'text-green-600 dark:text-green-400' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400'
+          ]"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clip-rule="evenodd" />
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>
           </svg>
+          <span class="font-medium text-xs">Boost</span>
+          <span :class="getVoteColor(postScore)" class="font-semibold text-xs">{{ postScore }}</span>
         </button>
-        <span class="font-semibold" :class="getVoteColor(postScore)">{{ postScore }}</span>
+
+        <!-- Comments -->
         <button
-          @click.stop="handleVote(-1)"
-          :class="['vote-button', { 'text-red-500 dark:text-red-400': userVoteLocal === -1 }]"
-          title="Downvote"
+          @click.stop="navigateToPost"
+          class="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 active:scale-95 transition-all min-h-[44px] -my-2 py-2"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11a1 1 0 10-2 0v-3.586l-1.293 1.293a1 1 0 00-1.414-1.414l3-3a1 1 0 001.414 0l3 3a1 1 0 00-1.414 1.414L11 9.414V13z" clip-rule="evenodd" />
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
           </svg>
+          <span class="text-xs font-medium">{{ post.commentCount || 0 }}</span>
+        </button>
+
+        <!-- Share -->
+        <button 
+          @click.stop="handleShare"
+          class="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 active:scale-95 transition-all min-h-[44px] -my-2 py-2"
+        >
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"/>
+          </svg>
+          <span class="text-xs font-medium">Share</span>
         </button>
       </div>
-
-      <router-link
-        :to="`/community/post/${post.id}`"
-        class="flex items-center space-x-1 hover:text-teal-600 dark:hover:text-indigo-400 transition-colors"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-4l-4 4z" />
-        </svg>
-        <span>{{ post.commentCount || 0 }} Comments</span>
-      </router-link>
-
-      <button class="flex items-center space-x-1 hover:text-teal-600 dark:hover:text-indigo-400 transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-        </svg>
-        <span>Share</span>
-      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '@/api';
 import { useAuthStore } from '@/stores/auth';
-import UserProfileCard from './UserProfileCard.vue';
 
-interface ProfileCardData {
+interface Post {
   id: string;
-  displayName: string;
-  status: 'Online' | 'Away' | 'Offline';
-  postCount: number;
-  lastActive: string;
+  content: string;
+  category: string;
+  isAnonymous: boolean;
+  createdAt?: string | number | null;
+  created_at?: string | number | null;
+  authorName?: string | null;
+  authorId?: string | null;
+  profilePictureUrl?: string | null;
+  authorStatus?: 'Online' | 'Away' | 'Offline';
+  authorPostCount?: number;
+  authorLastActive?: string;
+  commentCount?: number;
+  voteCount?: number;
+  userVote?: number;
 }
 
 const props = defineProps<{
-  post: {
-    id: string;
-    content: string;
-    category: string;
-    isAnonymous: boolean;
-    createdAt?: string | number | null;
-    created_at?: string | number | null;
-    authorName?: string | null;
-    authorId?: string | null;
-    authorStatus?: 'Online' | 'Away' | 'Offline';
-    authorPostCount?: number;
-    authorLastActive?: string;
-    commentCount?: number;
-    voteCount?: number;
-    userVote?: number;
-  };
+  post: Post;
 }>();
 
+const emit = defineEmits(['post-updated']);
+
+const router = useRouter();
 const authStore = useAuthStore();
 const postScore = ref(props.post.voteCount ?? 0);
 const userVoteLocal = ref<number>(props.post.userVote ?? 0);
-const isCardVisible = ref(false);
+const imageError = ref(false);
 
 const displayName = computed(() => {
   if (props.post.isAnonymous) return 'Anonymous';
   return props.post.authorName || 'Anonymous';
 });
-const avatarLetter = computed(() => (displayName.value && displayName.value[0] ? displayName.value[0].toUpperCase() : '?'));
+
+const avatarLetter = computed(() => 
+  (displayName.value && displayName.value[0] ? displayName.value[0].toUpperCase() : '?')
+);
+
+const avatarGradientClass = computed(() => {
+  if (props.post.isAnonymous) {
+    return 'bg-gradient-to-br from-slate-400 to-slate-500';
+  }
+  
+  const gradients = [
+    'bg-gradient-to-br from-cyan-500 to-blue-600',
+    'bg-gradient-to-br from-purple-500 to-pink-600',
+    'bg-gradient-to-br from-green-500 to-teal-600',
+    'bg-gradient-to-br from-orange-500 to-red-600',
+    'bg-gradient-to-br from-indigo-500 to-purple-600',
+  ];
+  
+  const index = (props.post.authorId?.charCodeAt(0) || 0) % gradients.length;
+  return gradients[index];
+});
 
 const createdAtRaw = computed(() => props.post.createdAt ?? props.post.created_at ?? null);
 
@@ -165,69 +191,62 @@ function parseDateLike(input: unknown): Date | null {
 function formatRelative(date: Date): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  if (diffMs < 0) return 'Just now';
+  if (diffMs < 0) return 'now';
   const s = Math.floor(diffMs / 1000);
   const m = Math.floor(s / 60);
   const h = Math.floor(m / 60);
   const d = Math.floor(h / 24);
-  if (s < 60) return 'Just now';
-  if (m < 60) return `${m}m ago`;
-  if (h < 24) return `${h}h ago`;
-  if (d < 7) return `${d}d ago`;
+  if (s < 60) return 'now';
+  if (m < 60) return `${m}m`;
+  if (h < 24) return `${h}h`;
+  if (d < 7) return `${d}d`;
   return date.toLocaleDateString('en-GB');
 }
 
 const formattedTimestamp = computed(() => {
   const d = parseDateLike(createdAtRaw.value);
-  return d ? formatRelative(d) : 'Just now';
-});
-
-// 🌟 REFINED LOGIC: Explicitly set ID to '' if anonymous, or use the provided ID.
-const authorCardData = computed<ProfileCardData>(() => ({
-  // If the post is anonymous, ID must be explicitly empty string to disable the link.
-  // Otherwise, use the authorId, defaulting to empty string if it's missing (data issue).
-  id: props.post.isAnonymous ? '' : (props.post.authorId || ''),
-  displayName: props.post.authorName || 'User',
-  status: props.post.authorStatus || 'Offline',
-  postCount: props.post.authorPostCount || 0,
-  lastActive: props.post.authorLastActive || formattedTimestamp.value
-}));
-
-function toggleCard() {
-  // Only allow card to be toggled if not anonymous
-  if (!props.post.isAnonymous) {
-    isCardVisible.value = !isCardVisible.value;
-  }
-}
-
-// --- COLOURS FROM MODERN VERSION ---
-
-const cardBorderClasses = computed(() => {
-    const baseClasses = 'border-t-4 border-l-2';
-    switch (props.post.category) {
-        case 'Advice': return `${baseClasses} border-blue-500 dark:border-blue-600`;
-        case 'Vent': return `${baseClasses} border-red-500 dark:border-red-600`;
-        case 'Support': return `${baseClasses} border-green-500 dark:border-green-600`;
-        default: return `${baseClasses} border-cyan-500 dark:border-cyan-600`;
-    }
+  return d ? formatRelative(d) : 'now';
 });
 
 const categoryBadgeClass = (category: string) => {
-    switch (category) {
-        case 'Advice': return 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100';
-        case 'Vent': return 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100';
-        case 'Support': return 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100';
-        default: return 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
-    }
+  switch (category) {
+    case 'Advice': 
+      return 'bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-400 border-blue-200 dark:border-blue-500/30';
+    case 'Vent': 
+      return 'bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-400 border-red-200 dark:border-red-500/30';
+    case 'Support': 
+      return 'bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-400 border-green-200 dark:border-green-500/30';
+    default: 
+      return 'bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-600/30';
+  }
 };
 
 const getVoteColor = (count: number) => {
-    if (count > 0) return 'text-green-500 dark:text-green-400';
-    if (count < 0) return 'text-red-500 dark:text-red-400';
-    return 'text-slate-500 dark:text-slate-400';
+  if (count > 0) return 'text-green-600 dark:text-green-400';
+  if (count < 0) return 'text-red-600 dark:text-red-400';
+  return 'text-slate-600 dark:text-slate-400';
 };
 
-// --- /COLOURS ---
+const handleImageError = () => {
+  imageError.value = true;
+  console.error('Failed to load profile picture:', props.post.profilePictureUrl);
+};
+
+const handleAvatarClick = () => {
+  if (!props.post.isAnonymous && props.post.authorId) {
+    router.push(`/profile/${props.post.authorId}`);
+  }
+};
+
+const handleAuthorClick = () => {
+  if (!props.post.isAnonymous && props.post.authorId) {
+    router.push(`/profile/${props.post.authorId}`);
+  }
+};
+
+const navigateToPost = () => {
+  router.push(`/community/post/${props.post.id}`);
+};
 
 const handleVote = async (type: 1 | -1) => {
   if (!authStore.isAuthenticated) {
@@ -246,18 +265,30 @@ const handleVote = async (type: 1 | -1) => {
       postScore.value += (sendType - userVoteLocal.value);
       userVoteLocal.value = sendType;
     }
+    
+    emit('post-updated');
   } catch (err) {
     console.error('Error voting:', err);
     alert('Failed to record vote. Please try again.');
   }
 };
-</script>
 
-<style scoped>
-.vote-button {
-  @apply p-1 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-teal-600 dark:hover:text-indigo-400 transition-colors;
-}
-.z-30 {
-  z-index: 30;
-}
-</style>
+const handleShare = async () => {
+  const url = `${window.location.origin}/community/post/${props.post.id}`;
+  
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: 'Check out this post',
+        text: props.post.content.substring(0, 100),
+        url: url
+      });
+    } else {
+      await navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+    }
+  } catch (err) {
+    console.log('Share cancelled or failed:', err);
+  }
+};
+</script>

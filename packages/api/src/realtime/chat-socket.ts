@@ -7,7 +7,7 @@ export let io: Server | null = null;
 export function initChatSocket(app: FastifyInstance) {
   io = new Server(app.server, {
     cors: {
-      origin: process.env.WEB_ORIGIN || 'http://localhost:5173',
+      origin: process.env.WEB_ORIGIN || 'https://carerscircle.co.uk',
       credentials: true,
     },
   });

@@ -1,104 +1,170 @@
 <template>
-  <div class="min-h-screen bg-white text-slate-800 dark:bg-[#0f172a] dark:text-white p-6 transition-colors">
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Planner</h1>
-      <p class="text-slate-500 dark:text-slate-400">{{ todayDate }}</p>
+  <div class="min-h-screen bg-white text-slate-800 dark:bg-[#0f172a] dark:text-white transition-colors">
+    <!-- Header -->
+    <div class="p-4 pb-2">
+      <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Planner</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400">{{ todayDate }}</p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div class="col-span-2 space-y-8">
-        <h2 class="text-xl font-semibold text-slate-900 dark:text-white">
-          Appointments on {{ selectedDateFormatted }}
+    <!-- Mobile-First Layout -->
+    <div class="space-y-6 p-4">
+      <!-- Calendar Card - Full Width on Mobile -->
+      <div class="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+        <!-- Month Navigation -->
+        <div class="flex justify-between items-center mb-4">
+          <button 
+            @click="prevMonth" 
+            class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 active:bg-slate-300 dark:active:bg-slate-600 transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <h3 class="font-semibold text-slate-900 dark:text-white">{{ monthYear }}</h3>
+          <button 
+            @click="nextMonth" 
+            class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 active:bg-slate-300 dark:active:bg-slate-600 transition-colors"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Calendar Grid -->
+        <div class="grid grid-cols-7 gap-1 text-center">
+          <!-- Week Day Headers -->
+          <div 
+            v-for="day in weekDays" 
+            :key="day" 
+            class="font-semibold text-xs text-slate-600 dark:text-slate-400 py-2"
+          >
+            {{ day }}
+          </div>
+
+          <!-- Calendar Days -->
+          <button
+            v-for="cell in calendarDays"
+            :key="cell.date.toISOString()"
+            class="relative aspect-square flex items-center justify-center rounded-lg transition-all text-sm min-h-[44px]"
+            :class="[
+              cell.isCurrentMonth 
+                ? 'text-slate-800 dark:text-white font-medium' 
+                : 'text-slate-400 dark:text-slate-600',
+              isToday(cell.date) 
+                ? 'bg-blue-600 text-white font-bold shadow-md' 
+                : 'hover:bg-slate-200 dark:hover:bg-slate-700 active:bg-slate-300 dark:active:bg-slate-600',
+              isSelected(cell.date) && !isToday(cell.date) 
+                ? 'ring-2 ring-blue-500 dark:ring-blue-400 bg-slate-200 dark:bg-slate-700' 
+                : ''
+            ]"
+            @click="selectAndRefetch(cell.date)"
+          >
+            <span>{{ cell.date.getDate() }}</span>
+            <!-- Appointment Indicator Dot -->
+            <span 
+              v-if="hasAppointments(cell.date)"
+              class="absolute bottom-1 w-1 h-1 rounded-full"
+              :class="isToday(cell.date) ? 'bg-white' : 'bg-blue-500 dark:bg-blue-400'"
+            ></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Appointments Section -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
+            {{ selectedDateFormatted }}
+          </h2>
           <button
             v-if="!isToday(selectedDate)"
             @click="selectAndRefetch(new Date())"
-            class="text-sm text-teal-600 dark:text-indigo-400 hover:text-teal-500 dark:hover:text-indigo-300 ml-3 font-normal"
+            class="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 active:text-blue-800 dark:active:text-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
           >
-            (Show Today)
+            Today
           </button>
-        </h2>
-
-        <div v-if="appointmentsLoading" class="text-slate-500 dark:text-slate-400">Loading...</div>
-        <div v-else-if="appointmentsError" class="text-red-500 dark:text-red-400">
-          <p>⚠️ Failed to load appointments. Please try again.</p>
         </div>
 
-        <div v-else-if="appointments.length === 0" class="text-slate-500 bg-slate-50 dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700">
-          <p>No events scheduled for {{ selectedDateFormatted }}.</p>
+        <!-- Loading State -->
+        <div v-if="appointmentsLoading" class="text-center py-8">
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Loading...</p>
         </div>
 
-        <div v-else class="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900 rounded-xl shadow-lg p-2">
+        <!-- Error State -->
+        <div v-else-if="appointmentsError" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 text-center">
+          <p class="text-red-600 dark:text-red-400">⚠️ Failed to load appointments</p>
+          <button 
+            @click="fetchAppointmentsForSelectedDay"
+            class="mt-2 text-sm text-red-600 dark:text-red-400 font-medium hover:underline"
+          >
+            Try again
+          </button>
+        </div>
+
+        <!-- Empty State -->
+        <div 
+          v-else-if="appointments.length === 0" 
+          class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center"
+        >
+          <svg class="w-12 h-12 mx-auto mb-3 text-slate-400 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <p class="text-slate-500 dark:text-slate-400">No appointments scheduled</p>
+        </div>
+
+        <!-- Appointments List -->
+        <div v-else class="space-y-3">
           <div
             v-for="appt in appointments"
             :key="appt.id"
-            class="flex items-center justify-between py-4 px-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-lg"
+            class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 transition-colors"
           >
-            <div class="flex items-center space-x-4">
-              <!-- Always try to render image; fallback happens via @error -->
-              <img
-                :src="avatarSrc(appt)"
-                @error="onImgError"
-                class="h-10 w-10 rounded-full object-cover bg-slate-200 dark:bg-slate-700 flex-shrink-0"
-                alt="Profile picture"
-              />
-              <div>
-                <p class="font-medium text-slate-800 dark:text-white">{{ appt.title }}</p>
-
-                <p v-if="appt.description" class="text-sm text-slate-600 dark:text-slate-300 italic">
-                  {{ appt.description }}
-                </p>
-
-                <p class="text-sm text-slate-500 dark:text-slate-400">
-                  {{ formatDateTime(appt.appointment_datetime) }}
-                  <span v-if="appt.location"> • {{ appt.location }}</span>
-                </p>
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-start gap-3 flex-1 min-w-0">
+                <img
+                  :src="avatarSrc(appt)"
+                  @error="onImgError"
+                  class="h-10 w-10 rounded-full object-cover bg-slate-200 dark:bg-slate-700 flex-shrink-0"
+                  alt="Profile"
+                />
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-slate-900 dark:text-white truncate">{{ appt.title }}</p>
+                  <p v-if="appt.description" class="text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
+                    {{ appt.description }}
+                  </p>
+                  <div class="flex flex-wrap items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    <span class="flex items-center gap-1">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      {{ formatDateTime(appt.appointment_datetime) }}
+                    </span>
+                    <span v-if="appt.location" class="flex items-center gap-1">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                      </svg>
+                      {{ appt.location }}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <button
-              @click="deleteAppointment(appt.id)"
-              class="text-sm text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-500 transition-colors px-2 py-1 rounded"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-
-        <AppointmentComposer @appointment-created="handleAppointmentCreated" />
-      </div>
-
-      <div class="lg:col-span-1 flex justify-center lg:justify-end">
-        <div class="w-full max-w-sm">
-          <div class="bg-slate-100 dark:bg-slate-900 p-4 rounded-xl shadow transition-colors border border-slate-200 dark:border-slate-800">
-            <div class="flex justify-between items-center mb-4">
-              <button @click="prevMonth" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-teal-600 dark:hover:text-indigo-400">&lt;</button>
-              <h3 class="font-semibold text-slate-900 dark:text-white">{{ monthYear }}</h3>
-              <button @click="nextMonth" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-teal-600 dark:hover:text-indigo-400">&gt;</button>
-            </div>
-
-            <div class="grid grid-cols-7 gap-1 text-center text-slate-500 dark:text-slate-400 text-xs">
-              <div v-for="day in weekDays" :key="day" class="font-bold py-1">{{ day }}</div>
-
-              <div
-                v-for="cell in calendarDays"
-                :key="cell.date.toISOString()"
-                class="h-10 flex items-center justify-center rounded-lg cursor-pointer transition-colors text-sm relative"
-                :class="[
-                  cell.isCurrentMonth ? 'text-slate-800 dark:text-white' : 'text-slate-400 dark:text-slate-600',
-                  isToday(cell.date) ? 'bg-teal-500 text-white font-bold dark:bg-indigo-500' : 'hover:bg-slate-200 dark:hover:bg-slate-700',
-                  isSelected(cell.date) && !isToday(cell.date) ? 'ring-2 ring-teal-500 dark:ring-indigo-500 bg-slate-200 dark:bg-slate-700' : ''
-                ]"
-                @click="selectAndRefetch(cell.date)"
+              <button
+                @click="deleteAppointment(appt.id)"
+                class="flex-shrink-0 p-2 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
               >
-                {{ cell.date.getDate() }}
-                <span 
-                  v-if="hasAppointments(cell.date)"
-                  class="absolute bottom-1 right-1 h-1 w-1 rounded-full bg-red-500 dark:bg-red-400"
-                  :class="{'bg-white': isToday(cell.date)}"
-                ></span>
-              </div>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
             </div>
           </div>
         </div>
+
+        <!-- Appointment Composer -->
+        <AppointmentComposer @appointment-created="handleAppointmentCreated" />
       </div>
     </div>
   </div>
@@ -110,33 +176,27 @@ import api from '@/api';
 import AppointmentComposer from '@/components/AppointmentComposer.vue';
 import { useAuthStore } from '@/stores/auth';
 
-// --- Auth (for fallback to current user's avatar) ---
 const authStore = useAuthStore();
 
-// --- State ---
 const appointments = ref<any[]>([]);
 const appointmentsLoading = ref(false);
 const appointmentsError = ref(false);
 
-// Calendar State
 const currentDate = ref(new Date());
 const selectedDate = ref(new Date());
 const allAppointments = ref<any[]>([]);
 
-// --- URL helpers for images ---
 const defaultAvatar = '/default-avatar.png';
-const backendUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
+const backendUrl = (import.meta.env.VITE_API_URL as string) || 'https://api.carerscircle.co.uk';
 
 function toAbsoluteUrl(pathOrUrl?: string | null): string {
   if (!pathOrUrl) return defaultAvatar;
-  // Accept data:, blob:, http(s):
   if (/^(data:|blob:|https?:\/\/)/i.test(pathOrUrl)) return pathOrUrl;
   const base = backendUrl.replace(/\/+$/, '');
   const path = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
   return `${base}${path}`;
 }
 
-// Determine the best avatar url for an appointment
 function avatarSrc(appt: any): string {
   const candidate =
     appt?.profilePictureUrl ||
@@ -154,15 +214,12 @@ function onImgError(e: Event) {
   }
 }
 
-// --- Utility function for reliable YYYY-MM-DD formatting ---
 const getYYYYMMDD = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
-
-// --- Computed & Helpers ---
 
 const todayDate = new Date().toLocaleDateString('en-US', {
   weekday: 'long',
@@ -173,8 +230,7 @@ const todayDate = new Date().toLocaleDateString('en-US', {
 
 const selectedDateFormatted = computed(() =>
   selectedDate.value.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
+    month: 'short',
     day: 'numeric',
     year: 'numeric'
   })
@@ -215,7 +271,6 @@ const calendarDays = computed(() => {
   return days;
 });
 
-// Helper to check if a date is today (ignores time)
 const isToday = (date: Date) => {
   const now = new Date();
   return date.getDate() === now.getDate() &&
@@ -223,14 +278,12 @@ const isToday = (date: Date) => {
     date.getFullYear() === now.getFullYear();
 };
 
-// Helper to check if a date is the selected date (ignores time)
 const isSelected = (date: Date) => {
   return date.getDate() === selectedDate.value.getDate() &&
     date.getMonth() === selectedDate.value.getMonth() &&
     date.getFullYear() === selectedDate.value.getFullYear();
 };
 
-// Check if a specific date has appointments (for the visual dot marker)
 const hasAppointments = (date: Date) => {
   const dateStr = getYYYYMMDD(date);
   return allAppointments.value.some(appt => {
@@ -249,7 +302,6 @@ const nextMonth = () => {
 
 const formatDateTime = (dateTime: string) =>
   new Date(dateTime).toLocaleString('en-US', {
-    weekday: 'short',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -257,19 +309,12 @@ const formatDateTime = (dateTime: string) =>
     hour12: true
   });
 
-// --- API Methods ---
-
 const fetchAllAppointments = async () => {
   try {
     const res = await api.get('/api/appointments');
     allAppointments.value = res.data || [];
-
-    // Debug: log shape to verify avatar fields
-    if (import.meta.env.DEV) {
-      console.log('[Planner] allAppointments sample:', allAppointments.value.slice(0, 3));
-    }
   } catch (err) {
-    console.error('Failed to fetch all appointments for calendar markers:', err);
+    console.error('Failed to fetch all appointments:', err);
   }
 };
 
@@ -283,7 +328,6 @@ const fetchAppointmentsForSelectedDay = async () => {
 
   try {
     const dateStr = getYYYYMMDD(selectedDate.value);
-
     const filteredAppts = (allAppointments.value || []).filter((appt: any) => {
       const apptDateStr = getYYYYMMDD(new Date(appt.appointment_datetime));
       return apptDateStr === dateStr;
@@ -292,17 +336,6 @@ const fetchAppointmentsForSelectedDay = async () => {
     appointments.value = filteredAppts.sort((a: any, b: any) =>
       new Date(a.appointment_datetime).getTime() - new Date(b.appointment_datetime).getTime()
     );
-
-    // Debug: log src that will be used
-    if (import.meta.env.DEV) {
-      const preview = appointments.value.map((a: any) => ({
-        id: a.id,
-        raw: a.profilePictureUrl || a.user?.profilePictureUrl || a.owner?.profilePictureUrl || authStore.user?.profilePictureUrl || null,
-        resolved: avatarSrc(a)
-      }));
-      console.log('[Planner] avatar preview for selected day:', preview);
-    }
-
   } catch (err) {
     appointmentsError.value = true;
   } finally {
@@ -311,13 +344,11 @@ const fetchAppointmentsForSelectedDay = async () => {
 };
 
 const deleteAppointment = async (id: string) => {
-  if (!confirm('Are you sure you want to delete this appointment?')) return;
+  if (!confirm('Delete this appointment?')) return;
   try {
     await api.delete(`/api/appointments/${id}`);
-
     await fetchAllAppointments();
     await fetchAppointmentsForSelectedDay();
-
   } catch (err) {
     console.error('Failed to delete appointment', err);
   }
@@ -328,12 +359,10 @@ const handleAppointmentCreated = async () => {
   await fetchAppointmentsForSelectedDay();
 };
 
-// --- Calendar Interaction ---
 const selectAndRefetch = (date: Date) => {
   selectedDate.value = date;
 };
 
-// --- Watchers ---
 watch(selectedDate, () => {
   if (getYYYYMMDD(selectedDate.value).substring(0, 7) !== getYYYYMMDD(currentDate.value).substring(0, 7)) {
     currentDate.value = new Date(selectedDate.value.getFullYear(), selectedDate.value.getMonth(), 1);
@@ -345,13 +374,8 @@ watch(currentDate, () => {
   fetchAllAppointments();
 });
 
-// --- Lifecycle ---
 onMounted(async () => {
   await fetchAllAppointments();
   await fetchAppointmentsForSelectedDay();
 });
 </script>
-
-<style scoped>
-/* Scoped styles here */
-</style>

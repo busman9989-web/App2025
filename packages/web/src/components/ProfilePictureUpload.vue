@@ -57,11 +57,11 @@ const file = ref<File | null>(null);
 const preview = ref<string>('');
 
 // Always provide string | undefined to img :src AND prefix backend if needed
-const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const backendUrl = import.meta.env.VITE_API_URL || 'https://api.carerscircle.co.uk';
 const displaySrc = computed(() => {
   if (preview.value) return preview.value;
   if (props.initialUrl) {
-    if (props.initialUrl.startsWith('http')) return props.initialUrl;
+    if (props.initialUrl.startsWith('https')) return props.initialUrl;
     return backendUrl.replace(/\/$/, '') + props.initialUrl;
   }
   return undefined;

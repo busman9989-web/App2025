@@ -1,0 +1,74 @@
+
+
+@layer utilities {
+  /* Fade in */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-in-out both;
+  }
+
+  /* Fade out */
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  .animate-fade-out {
+    animation: fade-out 0.5s ease-in-out both;
+  }
+
+  /* Slide in from bottom */
+  @keyframes slide-up {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out both;
+  }
+
+  /* Slide in from top */
+  @keyframes slide-down {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .animate-slide-down {
+    animation: slide-down 0.4s ease-out both;
+  }
+
+  /* Slide in from left */
+  @keyframes slide-left {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .animate-slide-left {
+    animation: slide-left 0.4s ease-out both;
+  }
+
+  /* Slide in from right */
+  @keyframes slide-right {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .animate-slide-right {
+    animation: slide-right 0.4s ease-out both;
+  }
+
+  /* Scale / pop */
+  @keyframes scale-up {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .animate-scale-up {
+    animation: scale-up 0.3s ease-out both;
+  }
+
+  @keyframes scale-down {
+    from { transform: scale(1.05); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .animate-scale-down {
+    animation: scale-down 0.3s ease-out both;
+  }
+}

@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { io as ioClient, Socket } from 'socket.io-client';
 
-const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const backendUrl = import.meta.env.VITE_API_URL || 'https://api.carerscircle.co.uk';
 
 // Single shared socket across the app
 const socketRef = ref<Socket | null>(null);

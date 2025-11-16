@@ -25,7 +25,7 @@ export async function authRoutes(app: FastifyInstance) {
           email,
           passwordHash,
           displayNameEncrypted,
-          role: 'user', // FIXED: Use lowercase 'user' to match schema
+          role: 'user',
           isVerified: false,
         },
         select: {
@@ -49,14 +49,17 @@ export async function authRoutes(app: FastifyInstance) {
         role: newUser.role,
       });
 
+      // Set cookie for web
+      reply.setCookie('token', token, {
+        path: '/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+      });
+
+      // Also return token in response for mobile/native
       return reply
         .status(201)
-        .setCookie('token', token, {
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-        })
         .send({
           user: {
             id: newUser.id,
@@ -67,7 +70,8 @@ export async function authRoutes(app: FastifyInstance) {
             createdAt: newUser.createdAt.toISOString(),
             status: decryptedStatus,
             twoFaEnabled: newUser.twoFaEnabled,
-          }
+          },
+          token, // include token in response
         });
     } catch (error: any) {
       app.log.error('Error during registration:', error);
@@ -117,25 +121,28 @@ export async function authRoutes(app: FastifyInstance) {
         role: user.role,
       });
 
-      return reply
-        .setCookie('token', token, {
-          path: '/',
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-        })
-        .send({
-          user: {
-            id: user.id,
-            email: user.email,
-            displayName: decryptedDisplayName,
-            role: user.role,
-            isVerified: user.isVerified,
-            createdAt: user.createdAt.toISOString(),
-            status: decryptedStatus,
-            twoFaEnabled: user.twoFaEnabled,
-          }
-        });
+      // Set cookie for web
+      reply.setCookie('token', token, {
+        path: '/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+      });
+
+      // Also return token in response for mobile/native
+      return reply.send({
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: decryptedDisplayName,
+          role: user.role,
+          isVerified: user.isVerified,
+          createdAt: user.createdAt.toISOString(),
+          status: decryptedStatus,
+          twoFaEnabled: user.twoFaEnabled,
+        },
+        token, // include token in response
+      });
     } catch (error: any) {
       app.log.error('Error during login:', error);
       return reply.status(500).send({ error: 'Failed to log in.' });

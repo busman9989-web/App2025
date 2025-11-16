@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-3xl mx-auto space-y-6 p-4 bg-white dark:bg-[#0f172a] text-slate-800 dark:text-white min-h-screen transition-colors">
+  <div class="max-w-3xl mx-auto space-y-6 p-4 bg-white dark:bg-[#0f172a] text-slate-800 dark:text-white min-h-screen transition-colors pb-24">
     <button @click="router.back()" class="flex items-center text-slate-600 hover:text-teal-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -17,11 +17,43 @@
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200/80 dark:border-slate-700 p-5 space-y-4 mb-6 transition-colors">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 font-semibold text-lg transition-colors">
+            <!-- Profile Picture or Initial -->
+            <router-link
+              v-if="post.userId"
+              :to="`/profile/${post.userId}`"
+              class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0"
+              :class="post.profilePictureUrl ? 'bg-slate-200 dark:bg-slate-700' : avatarGradientClass(post)"
+            >
+              <img
+                v-if="post.profilePictureUrl && !postImageError"
+                :src="post.profilePictureUrl"
+                alt="Profile"
+                class="w-full h-full object-cover"
+                @error="postImageError = true"
+              />
+              <div
+                v-else
+                class="w-full h-full flex items-center justify-center text-white font-semibold text-lg"
+              >
+                {{ getInitial(post) }}
+              </div>
+            </router-link>
+            <div
+              v-else
+              class="w-10 h-10 bg-gradient-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center text-white font-semibold text-lg"
+            >
               {{ getInitial(post) }}
             </div>
+
             <div>
-              <p class="font-semibold text-slate-800 dark:text-white transition-colors">{{ getDisplayName(post) }}</p>
+              <router-link
+                v-if="post.userId"
+                :to="`/profile/${post.userId}`"
+                class="font-semibold text-slate-800 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                {{ getDisplayName(post) }}
+              </router-link>
+              <p v-else class="font-semibold text-slate-500 dark:text-slate-400">{{ getDisplayName(post) }}</p>
               <p class="text-xs text-slate-500 dark:text-slate-400 transition-colors">{{ formatTimestamp(post.createdAt || post.created_at) }}</p>
             </div>
           </div>
@@ -40,7 +72,7 @@
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-4l-4 4z" />
               </svg>
-              <span>{{ post.comments?.length || 0 }} Comments</span>
+              <span>{{ countAllComments(post.comments) }} Comments</span>
             </div>
           </div>
         </div>
@@ -86,6 +118,9 @@ interface Comment {
   createdAt: string;
   parentId: string | null;
   authorName: string;
+  userId?: string | null;
+  authorId?: string | null;
+  profilePictureUrl?: string | null;
   voteCount: number;
   userVote: number;
   replies?: Comment[];
@@ -98,6 +133,9 @@ interface Post {
   created_at?: string;
   authorName?: string;
   display_name?: string;
+  userId?: string | null;
+  authorId?: string | null;
+  profilePictureUrl?: string | null;
   category: string;
   comments: Comment[];
   score?: number;
@@ -111,6 +149,7 @@ const postId = route.params.id as string;
 const post = ref<Post | null>(null);
 const isLoading = ref(true);
 const error = ref(false);
+const postImageError = ref(false);
 
 // Helper to recursively map comments and ensure required fields are present
 function mapComment(raw: any): Comment {
@@ -120,6 +159,9 @@ function mapComment(raw: any): Comment {
     createdAt: raw.createdAt ?? raw.created_at ?? "",
     parentId: raw.parentId ?? null,
     authorName: raw.authorName ?? "Anonymous",
+    userId: raw.userId ?? null,
+    authorId: raw.authorId ?? raw.userId ?? null,
+    profilePictureUrl: raw.profilePictureUrl ?? null,
     voteCount: raw.voteCount ?? 0,
     userVote: raw.userVote ?? 0,
     replies: (raw.replies || []).map((r: any) => mapComment(r)),
@@ -136,10 +178,15 @@ const fetchPost = async () => {
   try {
     const response = await api.get(`/api/posts/${postId}`);
     post.value = response.data;
+    
+    console.log('Fetched post data:', post.value);
+    console.log('Fetched comments:', post.value?.comments);
+    
     if (!post.value?.id) {
       error.value = true;
     }
   } catch (err) {
+    console.error('Error fetching post:', err);
     error.value = true;
   } finally {
     isLoading.value = false;
@@ -166,6 +213,19 @@ const getInitial = (postData: Post) => {
   return name.charAt(0).toUpperCase();
 };
 
+const avatarGradientClass = (postData: Post) => {
+  const gradients = [
+    'bg-gradient-to-br from-cyan-500 to-blue-600',
+    'bg-gradient-to-br from-purple-500 to-pink-600',
+    'bg-gradient-to-br from-green-500 to-teal-600',
+    'bg-gradient-to-br from-orange-500 to-red-600',
+    'bg-gradient-to-br from-indigo-500 to-purple-600',
+  ];
+  const userId = postData.userId || postData.authorId || '';
+  const index = (userId.charCodeAt(0) || 0) % gradients.length;
+  return gradients[index];
+};
+
 const formatTimestamp = (timestamp: string | undefined) => {
   if (!timestamp) return 'Unknown time';
   try {
@@ -179,12 +239,12 @@ const formatTimestamp = (timestamp: string | undefined) => {
 
 const categoryClass = (category: string) => {
   switch (category) {
-    case 'Health & Wellness': return 'bg-blue-100 text-blue-800';
-    case 'Mental Health': return 'bg-purple-100 text-purple-800';
-    case 'Nutrition': return 'bg-green-100 text-green-800';
-    case 'Support': return 'bg-orange-100 text-orange-800';
-    case 'Advice': return 'bg-blue-100 text-blue-800';
-    case 'Vent': return 'bg-red-100 text-red-800';
+    case 'Health & Wellness': return 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400';
+    case 'Mental Health': return 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400';
+    case 'Nutrition': return 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400';
+    case 'Support': return 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400';
+    case 'Advice': return 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400';
+    case 'Vent': return 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400';
     default: return 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200';
   }
 };

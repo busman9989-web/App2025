@@ -498,7 +498,7 @@ const pendingOutgoing = ref<PendingRequest[]>([]);
 const isDarkMode = computed(() => themeStore.theme === 'dark');
 const isOwnProfile = computed(() => !!(auth.user?.id && profileData.value && auth.user.id === profileData.value.id));
 
-const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const backendUrl = import.meta.env.VITE_API_URL || 'https://api.carerscircle.co.uk/avatars';
 const fallbackAvatar = '/default-avatar.png';
 
 function resolveAvatar(path: string) {

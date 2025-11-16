@@ -27,7 +27,11 @@
         <span style="font-weight:bold;font-size:18px;flex:1;">
           {{ chatStore.activeThreadId ? 'Conversation' : 'Chats' }}
         </span>
-        <button @click="handleClose" style="padding:8px;background:#334155;border:none;border-radius:50%;cursor:pointer;color:white;">
+        <button 
+          @click="handleClose" 
+          style="padding:8px;background:#334155;border:none;border-radius:50%;cursor:pointer;color:white;"
+          tabindex="0"
+        >
           ✕
         </button>
       </div>
@@ -48,7 +52,6 @@ import ChatThreadList from './ChatThreadList.vue';
 import ChatThreadPanel from './ChatThreadPanel.vue';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
-
 const chatStore = useChatStore();
 const popupPanel = ref<HTMLElement | null>(null);
 
@@ -74,10 +77,12 @@ console.log('[ChatPopup] 🔧 Setup script running');
 
 onMounted(() => {
   console.log('[ChatPopup] ✅ Component MOUNTED');
-  console.log('[ChatPopup] activeThreadId:', chatStore.activeThreadId);
-  console.log('[ChatPopup] threads count:', chatStore.threads.length);
   window.addEventListener('keydown', onKeyDown);
-  popupPanel.value?.focus();
+
+  // Ensure popup panel gets focus for accessibility (and Escape key)
+  if (popupPanel.value) {
+    popupPanel.value.focus();
+  }
 });
 
 onUnmounted(() => {

@@ -21,7 +21,7 @@ model User {
   displayNameEncrypted String?  @map("display_name_encrypted")
   statusEncrypted      String?  @map("status_encrypted")
   profilePictureUrl    String?  @map("profile_picture_url")
-  bioEncrypted         String?  @map("bio_encrypted") // NEW
+  bioEncrypted         String?  @map("bio_encrypted")
   emailNotifications   Boolean? @default(true) @map("email_notifications")
   appNotifications     Boolean? @default(true) @map("app_notifications")
 
@@ -180,15 +180,18 @@ model Vote {
 }
 
 model Checklist {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
   name       String
-  items      Json     @default("[]")
-  isTemplate Boolean  @default(false) @map("is_template")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      Json      @default("[]")
+  isTemplate Boolean   @default(false) @map("is_template")
+  dueDate    DateTime? @map("due_date")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([dueDate])
   @@map("checklists")
 }
 

@@ -75,7 +75,6 @@ import { ref } from 'vue'
 import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
-// ✅ fix: define emits for modal close
 const emit = defineEmits(['close'])
 
 const auth = useAuthStore()
@@ -92,7 +91,9 @@ async function handleSubmit() {
       newEmail: newEmail.value,
       password: password.value,
     })
-    auth.user.email = newEmail.value
+    if (auth.user) {
+      auth.user.email = newEmail.value
+    }
     alert('Email updated successfully')
     emit('close')
   } catch {

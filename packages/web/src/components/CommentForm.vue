@@ -7,25 +7,13 @@
     </h3>
 
     <div v-if="authStore.user">
-      <!-- Title input only for top-level comments (new threads) -->
-      <div v-if="!props.parentId" class="mb-4">
-        <input
-          v-model="commentTitle"
-          placeholder="Title"
-          maxlength="100"
-          class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg mb-2
-                 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
-          @input="error = ''"
-        />
-      </div>
-
       <textarea
         v-model="commentContent"
         placeholder="Write your comment here..."
         rows="4"
         maxlength="500"
         class="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg 
-               focus:ring-2 focus:ring-teal-500 focus:border-teal-500
+               focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 focus:border-blue-500
                bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 leading-relaxed resize-none transition-colors"
         style="line-height: 1.6;"
         @input="error = ''"
@@ -34,12 +22,13 @@
       <div class="mt-4 flex justify-end">
         <button
           @click="submitComment"
-          :disabled="!commentContent.trim() || (!props.parentId && !commentTitle.trim()) || isSubmitting"
+          :disabled="!commentContent.trim() || isSubmitting"
           class="group relative inline-flex items-center justify-center gap-2 rounded-xl
                  border border-slate-300/70 dark:border-slate-600/70 bg-transparent
-                 px-4 py-2 text-slate-700 dark:text-slate-100 hover:border-cyan-400
-                 hover:text-cyan-700 dark:hover:text-cyan-300 focus:outline-none
-                 focus-visible:ring-2 focus-visible:ring-cyan-400 transition
+                 px-4 py-2 text-slate-700 dark:text-slate-100 hover:border-blue-400
+                 hover:text-blue-700 dark:hover:text-blue-300 active:border-blue-500
+                 active:text-blue-800 dark:active:text-blue-200 focus:outline-none
+                 focus-visible:ring-2 focus-visible:ring-blue-400 transition
                  disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg
@@ -73,7 +62,7 @@
       <p>
         Please
         <router-link to="/login"
-                     class="text-teal-600 hover:text-teal-700 font-medium hover:underline dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors">
+                     class="text-blue-600 hover:text-blue-700 font-medium hover:underline dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
           log in
         </router-link>
         to {{ props.parentId ? 'reply' : 'leave a comment' }}.
@@ -98,7 +87,6 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 const commentContent = ref('');
-const commentTitle = ref('');
 const isSubmitting = ref(false);
 const error = ref('');
 
@@ -107,28 +95,21 @@ const submitComment = async () => {
     error.value = 'Comment cannot be empty.';
     return;
   }
-  if (!props.parentId && !commentTitle.value.trim()) {
-    error.value = 'Title is required for new threads.';
-    return;
-  }
 
   error.value = '';
   isSubmitting.value = true;
 
   try {
-    const body: { content: string; parentId?: string; title?: string } = {
+    const body: { content: string; parentId?: string } = {
       content: commentContent.value.trim(),
     };
     if (props.parentId) {
       body.parentId = props.parentId;
-    } else {
-      body.title = commentTitle.value.trim();
     }
 
     const { data } = await api.post(`/api/posts/${props.postId}/comments`, body);
 
     commentContent.value = '';
-    if (!props.parentId) commentTitle.value = '';
     error.value = '';
 
     emit('comment-posted', data);

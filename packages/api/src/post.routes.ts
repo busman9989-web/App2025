@@ -7,9 +7,10 @@ interface FormattedComment {
   content: string;
   createdAt: string;
   parentId: string | null;
-  userId: string | null;          // For profile linking (newer)
-  authorId?: string | null;       // Back-compat for frontend expecting authorId
+  userId: string | null;
+  authorId?: string | null;
   authorName: string;
+  profilePictureUrl?: string | null;
   voteCount: number;
   userVote: number;
   title?: string | null;
@@ -39,24 +40,31 @@ export async function postRoutes(app: FastifyInstance) {
     }
   };
 
-  // Build a nested comment tree from a flat list of comments.
   const buildCommentTree = (flatComments: any[], currentUserId?: string): FormattedComment[] => {
     const map = new Map<string, FormattedComment>();
     const roots: FormattedComment[] = [];
 
+    // First pass: create all nodes
     for (const c of flatComments) {
       const votes = Array.isArray(c.votes) ? c.votes : [];
       const voteCount = votes.reduce((s: number, v: any) => s + (v.voteType || 0), 0);
       const userVote = votes.find((v: any) => v.userId === currentUserId)?.voteType ?? 0;
+
+      const authorName = c.user?.displayNameEncrypted 
+        ? decryptOrAnonymous(c.user.displayNameEncrypted) 
+        : 'Anonymous';
+
+      const profilePictureUrl = c.user?.profilePictureUrl ?? null;
 
       map.set(c.id, {
         id: c.id,
         content: c.content,
         createdAt: (c.createdAt instanceof Date) ? c.createdAt.toISOString() : String(c.createdAt),
         parentId: c.parentId ?? null,
-        userId: c.userId ?? null, // newer
-        authorId: c.userId ?? null, // back-compat for profile links
-        authorName: c.user?.displayNameEncrypted ? decryptOrAnonymous(c.user.displayNameEncrypted) : 'Anonymous',
+        userId: c.userId ?? null,
+        authorId: c.userId ?? null,
+        authorName,
+        profilePictureUrl,
         voteCount,
         userVote,
         replies: [],
@@ -64,6 +72,7 @@ export async function postRoutes(app: FastifyInstance) {
       });
     }
 
+    // Second pass: build tree structure
     for (const c of flatComments) {
       const node = map.get(c.id)!;
       if (c.parentId) {
@@ -97,7 +106,12 @@ export async function postRoutes(app: FastifyInstance) {
           createdAt: true,
           userId: true,
           title: true,
-          user: { select: { displayNameEncrypted: true } },
+          user: { 
+            select: { 
+              displayNameEncrypted: true,
+              profilePictureUrl: true
+            } 
+          },
           _count: { select: { comments: true, postVotes: true } },
           postVotes: { select: { userId: true, voteType: true } },
         },
@@ -120,15 +134,16 @@ export async function postRoutes(app: FastifyInstance) {
           category: post.category,
           title: post.title,
           isAnonymous: post.isAnonymous,
-          createdAt: createdIso,       // newer
-          created_at: createdIso,      // back-compat
-          userId: post.isAnonymous ? null : post.userId, // newer (nullable if anonymous)
-          authorId: post.userId,       // back-compat: what the old frontend expects for profile link
+          createdAt: createdIso,
+          created_at: createdIso,
+          userId: post.isAnonymous ? null : post.userId,
+          authorId: post.userId,
           authorName,
-          display_name: authorName,    // back-compat
+          display_name: authorName,
+          profilePictureUrl: post.isAnonymous ? null : (post.user?.profilePictureUrl ?? null),
           commentCount: post._count?.comments ?? 0,
           voteCount: totalVoteCount,
-          score: totalVoteCount,       // back-compat
+          score: totalVoteCount,
           userVote,
         };
       });
@@ -174,7 +189,12 @@ export async function postRoutes(app: FastifyInstance) {
           createdAt: true,
           userId: true,
           title: true,
-          user: { select: { displayNameEncrypted: true } },
+          user: { 
+            select: { 
+              displayNameEncrypted: true,
+              profilePictureUrl: true
+            } 
+          },
         },
       });
 
@@ -190,15 +210,16 @@ export async function postRoutes(app: FastifyInstance) {
         category: newPost.category,
         title: newPost.title,
         isAnonymous: newPost.isAnonymous,
-        createdAt: createdIso,         // newer
-        created_at: createdIso,        // back-compat
-        userId: newPost.isAnonymous ? null : newPost.userId, // newer (nullable if anonymous)
-        authorId: newPost.userId,      // back-compat
+        createdAt: createdIso,
+        created_at: createdIso,
+        userId: newPost.isAnonymous ? null : newPost.userId,
+        authorId: newPost.userId,
         authorName,
-        display_name: authorName,      // back-compat
+        display_name: authorName,
+        profilePictureUrl: newPost.isAnonymous ? null : (newPost.user?.profilePictureUrl ?? null),
         commentCount: 0,
         voteCount: 0,
-        score: 0,                      // back-compat
+        score: 0,
         userVote: 0,
       });
     } catch (error: any) {
@@ -223,7 +244,12 @@ export async function postRoutes(app: FastifyInstance) {
           createdAt: true,
           userId: true,
           title: true,
-          user: { select: { displayNameEncrypted: true } },
+          user: { 
+            select: { 
+              displayNameEncrypted: true,
+              profilePictureUrl: true
+            } 
+          },
           postVotes: { select: { userId: true, voteType: true } },
         },
       });
@@ -232,7 +258,6 @@ export async function postRoutes(app: FastifyInstance) {
         return reply.status(404).send({ message: 'Post not found.' });
       }
 
-      // Fetch all comments for this post in a single flat query (ordered by createdAt)
       const flatComments = await prisma.comment.findMany({
         where: { postId },
         orderBy: { createdAt: 'asc' },
@@ -243,7 +268,12 @@ export async function postRoutes(app: FastifyInstance) {
           parentId: true,
           title: true,
           userId: true,
-          user: { select: { displayNameEncrypted: true } },
+          user: { 
+            select: { 
+              displayNameEncrypted: true,
+              profilePictureUrl: true
+            } 
+          },
           votes: { select: { userId: true, voteType: true } },
         },
       });
@@ -266,12 +296,13 @@ export async function postRoutes(app: FastifyInstance) {
         category: post.category,
         title: post.title,
         isAnonymous: post.isAnonymous,
-        createdAt: createdIso,         // newer
-        created_at: createdIso,        // back-compat
-        userId: post.isAnonymous ? null : post.userId, // newer
-        authorId: post.userId,         // back-compat for profile link
+        createdAt: createdIso,
+        created_at: createdIso,
+        userId: post.isAnonymous ? null : post.userId,
+        authorId: post.userId,
         authorName,
-        display_name: authorName,      // back-compat
+        display_name: authorName,
+        profilePictureUrl: post.isAnonymous ? null : (post.user?.profilePictureUrl ?? null),
         voteCount: totalVoteCount,
         userVote,
         comments: commentsTree,
@@ -292,24 +323,19 @@ export async function postRoutes(app: FastifyInstance) {
       return reply.status(401).send({ message: 'Unauthorized' });
     }
 
-    const { content, parentId, title } = request.body as { content: string; parentId?: string; title?: string };
+    const { content, parentId } = request.body as { content: string; parentId?: string };
 
-    if (!content) {
+    if (!content || !content.trim()) {
       return reply.status(400).send({ message: 'Comment content is required.' });
-    }
-
-    if (!parentId && (!title || !title.trim())) {
-      return reply.status(400).send({ message: 'Title is required for new threads.' });
     }
 
     try {
       const newComment = await prisma.comment.create({
         data: {
-          content,
+          content: content.trim(),
           postId: request.params.id,
           userId: request.user.id,
           parentId: parentId || null,
-          title: parentId ? null : title?.trim(),
         },
         select: {
           id: true,
@@ -318,8 +344,12 @@ export async function postRoutes(app: FastifyInstance) {
           parentId: true,
           postId: true,
           userId: true,
-          title: true,
-          user: { select: { displayNameEncrypted: true } },
+          user: { 
+            select: { 
+              displayNameEncrypted: true,
+              profilePictureUrl: true
+            } 
+          },
         },
       });
 
@@ -331,10 +361,10 @@ export async function postRoutes(app: FastifyInstance) {
         createdAt: createdIso,
         parentId: newComment.parentId,
         postId: newComment.postId,
-        userId: newComment.userId,     // newer
-        authorId: newComment.userId,   // back-compat for profile link
-        title: newComment.title,
+        userId: newComment.userId,
+        authorId: newComment.userId,
         authorName: newComment.user?.displayNameEncrypted ? decryptOrAnonymous(newComment.user.displayNameEncrypted) : 'Anonymous',
+        profilePictureUrl: newComment.user?.profilePictureUrl ?? null,
         voteCount: 0,
         userVote: 0,
         replies: [],
@@ -373,7 +403,6 @@ export async function postRoutes(app: FastifyInstance) {
         });
       }
 
-      // Fetch updated vote counts for this post
       const votes = await prisma.postVote.findMany({
         where: { postId },
         select: { voteType: true, userId: true }

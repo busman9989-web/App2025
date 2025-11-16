@@ -1,15 +1,22 @@
+version: '3.9'
+
 services:
   web:
     build:
       context: ./packages/web
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "https://api.carerscircle.co.uk"
     container_name: carerconnect-web
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=https://api.carerscircle.co.uk
+      - CERT_PATH=/etc/ssl/certs/cert.pem
+      - KEY_PATH=/etc/ssl/certs/key.pem
     volumes:
       - ./packages/web:/app
+      - ./packages/web/certs:/etc/ssl/certs:ro
     networks:
       - carerconnect_net
     depends_on:
@@ -27,6 +34,12 @@ services:
       - ./packages/api/.env
     volumes:
       - ./packages/api/public/avatars:/usr/src/app/public/avatars
+      - ./packages/api/certs:/usr/src/app/certs:ro
+    environment:
+      - CERT_PATH=/usr/src/app/certs/cert.pem
+      - KEY_PATH=/usr/src/app/certs/key.pem
+      - APP_URL=https://carerscircle.co.uk
+      - CORS_ORIGINS=https://carerscircle.co.uk,https://www.carerscircle.co.uk
     networks:
       - carerconnect_net
     depends_on:
@@ -60,12 +73,187 @@ services:
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
     networks:
       - carerconnect_net
     restart: unless-stopped
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: carerconnect-cloudflared
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    networks:
+      - carerconnect_net
+    depends_on:
+      - web
+      - api
+    command: ["tunnel", "run", "e9166627-9578-46aa-9a5a-8edf570518e8"]
+    restart: unless-stopped
+
+  # -------------------------
+  # Control panel / local-only services
+  # -------------------------
+
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: carerconnect-homepage
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./homepage/config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "localhost,localhost:3001,127.0.0.1,127.0.0.1:3001"
+    user: "0:1001"
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: carerconnect-portainer
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data:/data
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    container_name: carerconnect-adminer
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+
+  # -------------------------
+  # Monitoring Services
+  # -------------------------
+
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: carerconnect-dozzle
+    ports:
+      - "127.0.0.1:8888:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DOZZLE_NO_ANALYTICS: true
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: carerconnect-uptime-kuma
+    ports:
+      - "127.0.0.1:3002:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+
+  # -------------------------
+  # Chatwoot Services (Official Docker Images)
+  # -------------------------
+
+  chatwoot_db:
+    image: pgvector/pgvector:pg15
+    container_name: carerconnect-chatwoot-db
+    environment:
+      POSTGRES_DB: ${CHATWOOT_DB_NAME}
+      POSTGRES_USER: ${CHATWOOT_DB_USER}
+      POSTGRES_PASSWORD: ${CHATWOOT_DB_PASSWORD}
+    volumes:
+      - chatwoot_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CHATWOOT_DB_USER} -d ${CHATWOOT_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+
+  chatwoot_redis:
+    image: redis:7-alpine
+    container_name: carerconnect-chatwoot-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - chatwoot_redis_data:/data
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+
+  chatwoot:
+    image: chatwoot/chatwoot:latest
+    container_name: carerconnect-chatwoot
+    ports:
+      - "127.0.0.1:6001:3000"
+    environment:
+      RAILS_ENV: production
+      NODE_ENV: production
+      POSTGRES_HOST: chatwoot_db
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: ${CHATWOOT_DB_NAME:-chatwoot_production}
+      POSTGRES_USERNAME: ${CHATWOOT_DB_USER:-chatwoot}
+      POSTGRES_PASSWORD: ${CHATWOOT_DB_PASSWORD}
+      REDIS_URL: redis://chatwoot_redis:6379
+      SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE}
+      RAILS_LOG_TO_STDOUT: "true"
+      INSTALLATION_NAME: "CarerConnect Support"
+      FRONTEND_URL: "http://localhost:6001"
+      FORCE_SSL: "false"
+      ENABLE_ACCOUNT_SIGNUP: "false"
+    depends_on:
+      chatwoot_db:
+        condition: service_healthy
+      chatwoot_redis:
+        condition: service_started
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+    entrypoint: docker/entrypoints/rails.sh
+    command: ["bundle", "exec", "rails", "s", "-p", "3000", "-b", "0.0.0.0"]
+
+  chatwoot_sidekiq:
+    image: chatwoot/chatwoot:latest
+    container_name: carerconnect-chatwoot-sidekiq
+    environment:
+      RAILS_ENV: production
+      NODE_ENV: production
+      POSTGRES_HOST: chatwoot_db
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: ${CHATWOOT_DB_NAME:-chatwoot_production}
+      POSTGRES_USERNAME: ${CHATWOOT_DB_USER:-chatwoot}
+      POSTGRES_PASSWORD: ${CHATWOOT_DB_PASSWORD}
+      REDIS_URL: redis://chatwoot_redis:6379
+      SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE}
+      RAILS_LOG_TO_STDOUT: "true"
+    depends_on:
+      chatwoot_db:
+        condition: service_healthy
+      chatwoot_redis:
+        condition: service_started
+    networks:
+      - carerconnect_net
+    restart: unless-stopped
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+
 volumes:
   db_data:
+  redis_data:
+  portainer_data:
+  chatwoot_pgdata:
+  chatwoot_redis_data:
+  uptime_kuma_data:
 
 networks:
   carerconnect_net:

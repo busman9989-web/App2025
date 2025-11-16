@@ -36,8 +36,8 @@
           cursor: 'pointer',
           transition: 'background 0.2s'
         }"
-        @mouseenter="e => !isActive(thread.id) && (e.currentTarget.style.background = '#475569')"
-        @mouseleave="e => !isActive(thread.id) && (e.currentTarget.style.background = '#334155')"
+        @mouseenter="(e: MouseEvent) => { if (!isActive(thread.id)) { const t = e.currentTarget as HTMLElement | null; if (t) t.style.background = '#475569'; } }"
+        @mouseleave="(e: MouseEvent) => { if (!isActive(thread.id)) { const t = e.currentTarget as HTMLElement | null; if (t) t.style.background = '#334155'; } }"
       >
         <div style="display:flex;align-items:center;gap:12px;">
           <!-- Avatar -->
@@ -66,8 +66,8 @@
                 v-if="thread.recipientId"
                 :to="`/profile/${thread.recipientId}`"
                 style="font-weight:600;font-size:15px;color:white;text-decoration:none;"
-                @mouseenter="e => e.currentTarget.style.textDecoration = 'underline'"
-                @mouseleave="e => e.currentTarget.style.textDecoration = 'none'"
+                @mouseenter="(e: MouseEvent) => { const t = e.currentTarget as HTMLElement | null; if (t) t.style.textDecoration = 'underline'; }"
+                @mouseleave="(e: MouseEvent) => { const t = e.currentTarget as HTMLElement | null; if (t) t.style.textDecoration = 'none'; }"
               >
                 {{ thread.recipientName }}
               </router-link>
@@ -98,8 +98,8 @@
       <button
         @click="showUserSelectModal = true"
         style="width:100%;padding:12px;background:#0ea5e9;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;transition:background 0.2s;"
-        @mouseenter="e => e.currentTarget.style.background = '#0284c7'"
-        @mouseleave="e => e.currentTarget.style.background = '#0ea5e9'"
+        @mouseenter="(e: MouseEvent) => { const t = e.currentTarget as HTMLElement | null; if (t) t.style.background = '#0284c7'; }"
+        @mouseleave="(e: MouseEvent) => { const t = e.currentTarget as HTMLElement | null; if (t) t.style.background = '#0ea5e9'; }"
       >
         + New Conversation
       </button>
